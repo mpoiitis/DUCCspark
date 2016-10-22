@@ -1,7 +1,10 @@
 package com.poiitis.ducc;
 
+import com.google.common.collect.ImmutableList;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.function.Function;
 
@@ -13,15 +16,12 @@ public class Parser implements Serializable{
 
     private static final long serialVersionUID = -3808214153694185619L;
     
-    private JavaRDD<String> input; 
+    private JavaRDD<String> input;
+    private ArrayList<String> columnNames;
     
     public Parser(JavaRDD<String> input){    
         this.input = input;
-    }
-    
-    public ArrayList<String> getColumnNames(){
-        
-        ArrayList<String> columnNames = new ArrayList<>();
+        columnNames = new ArrayList<>();
         
         columnNames.add("Age");
         columnNames.add("Workclass");
@@ -38,9 +38,9 @@ public class Parser implements Serializable{
         columnNames.add("Hours-per-week");
         columnNames.add("Native-country");
         columnNames.add("Over-than-fifty");
-        
-        return columnNames;
     }
+    
+    public ArrayList<String> getColumnNames(){return columnNames;}
     
     public JavaRDD<Adult> parseFile(){
         
@@ -48,12 +48,11 @@ public class Parser implements Serializable{
             new Function<String, Adult>(){
                 public Adult call(String line) throws Exception {
                     String[] fields = line.split(",");
-                    Adult adult = new Adult(fields[0].trim(),fields[1].trim(),
-                        fields[2].trim(),fields[3].trim(),fields[4].trim(),
-                        fields[5].trim(),fields[6].trim(),fields[7].trim(),
-                        fields[8].trim(),fields[9].trim(),fields[10].trim(),
-                        fields[11].trim(),fields[12].trim(),fields[13].trim(),
-                        fields[14].trim());
+                    //turn array to list
+                    List<String> temp = ImmutableList.copyOf(fields);
+                    ArrayList<String> fieldsList = new ArrayList<>(temp);
+                    
+                    Adult adult = new Adult(columnNames,fieldsList);
                     return adult;
                 }
             });
