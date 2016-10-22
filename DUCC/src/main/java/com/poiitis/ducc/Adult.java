@@ -14,10 +14,12 @@ public class Adult implements Serializable{
     
     //linked hash map so as to preserve insertion order
     private LinkedHashMap<String,String> attributes;
+    //the position in dataset
+    private long lineNumber;
     
-    public Adult(ArrayList<String> columnNames, ArrayList<String> fields){
+    public Adult(ArrayList<String> columnNames, ArrayList<String> fields, Long line){
         
-        attributes = new LinkedHashMap<>();
+        this.attributes = new LinkedHashMap<>();
         
         if(columnNames.size() == fields.size()){
             int i = 0;
@@ -26,8 +28,11 @@ public class Adult implements Serializable{
                 i++;
             }
         }
+        
+        this.lineNumber = line;
     }
     
-    public LinkedHashMap<String,String> getAttributes(){return attributes;}
+    public LinkedHashMap<String,String> getAttributes(){return this.attributes;}
+    public long getLineNumber(){return this.lineNumber;}
     
 }

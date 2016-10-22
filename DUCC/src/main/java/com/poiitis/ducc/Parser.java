@@ -6,7 +6,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.spark.api.java.JavaRDD;
+import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.Function;
+import org.apache.spark.util.AccumulatorV2;
+import org.apache.spark.util.LongAccumulator;
 
 /**
  *
@@ -42,7 +45,7 @@ public class Parser implements Serializable{
     
     public ArrayList<String> getColumnNames(){return columnNames;}
     
-    public JavaRDD<Adult> parseFile(){
+    public JavaRDD<Adult> parseFile(LongAccumulator lineNumber){
         
         JavaRDD<Adult> rdd_adults = input.map(
             new Function<String, Adult>(){
@@ -52,7 +55,9 @@ public class Parser implements Serializable{
                     List<String> temp = ImmutableList.copyOf(fields);
                     ArrayList<String> fieldsList = new ArrayList<>(temp);
                     
-                    Adult adult = new Adult(columnNames,fieldsList);
+                    Adult adult = new Adult(columnNames, fieldsList, 
+                            lineNumber.value());
+                    lineNumber.add(1);
                     return adult;
                 }
             });
