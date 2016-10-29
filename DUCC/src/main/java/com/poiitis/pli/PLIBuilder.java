@@ -88,20 +88,25 @@ public class PLIBuilder implements Serializable{
             }
         });
         
+        //transform tuple to arraylist<tuple> so as to reduce them in plis
         JavaPairRDD<String, ArrayList<Tuple2<Long, String>>> prePlisAsList = 
-            prePlis.mapToPair(new PairFunction<Tuple2<String, Tuple2<Long, String>>,
-                String, ArrayList<Tuple2<Long, String>>>(){
-                    public Tuple2<String, ArrayList<Tuple2<Long, String>>> 
-                        call(Tuple2<String, Tuple2<Long, String>> tuple){
-                            ArrayList<Tuple2<Long, String>> temp = new ArrayList<>();
-                            temp.add(tuple._2);
-                            return new Tuple2<String, ArrayList<Tuple2<Long, String>>>(tuple._1,
-                                temp);
-                        }
-                    }
-        );
+            prePlis.mapToPair((Tuple2<String, Tuple2<Long, String>> tuple) -> {
+                ArrayList<Tuple2<Long, String>> temp = new ArrayList<>();
+                temp.add(tuple._2);
+                return new Tuple2<String, ArrayList<Tuple2<Long, String>>>(tuple._1,
+                        temp);
+        });
         
-        System.out.println(prePlisAsList.take(100));
+        //group by column
+        JavaPairRDD<String, ArrayList<Tuple2<Long, String>>> groupsByColumn = 
+            prePlisAsList.reduceByKey((ArrayList<Tuple2<Long, String>> x, 
+                ArrayList<Tuple2<Long, String>> y) -> {
+                x.addAll(y);
+                return x;
+        });
+        
+        //TODO make sets of colName,[(rowNamei,....,rowNamej),....,(rowNamek,...,rowNamem]
+        // where sets of rows contain rows that have the same value for column colName
     }
 
     
