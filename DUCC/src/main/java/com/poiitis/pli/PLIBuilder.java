@@ -2,15 +2,19 @@ package com.poiitis.pli;
 
 import com.poiitis.ducc.Adult;
 import com.poiitis.exceptions.InputIterationException;
+import it.unimi.dsi.fastutil.Hash;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
+import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.Function2;
 import org.apache.spark.api.java.function.PairFlatMapFunction;
+import org.apache.spark.api.java.function.PairFunction;
 import org.apache.spark.storage.StorageLevel;
 import scala.Tuple2;
 
@@ -84,8 +88,23 @@ public class PLIBuilder implements Serializable{
             }
         });
         
-        //TODO calculate PLIs
+        JavaPairRDD<String, ArrayList<Tuple2<Long, String>>> prePlisAsList = 
+            prePlis.mapToPair(new PairFunction<Tuple2<String, Tuple2<Long, String>>,
+                String, ArrayList<Tuple2<Long, String>>>(){
+                    public Tuple2<String, ArrayList<Tuple2<Long, String>>> 
+                        call(Tuple2<String, Tuple2<Long, String>> tuple){
+                            ArrayList<Tuple2<Long, String>> temp = new ArrayList<>();
+                            temp.add(tuple._2);
+                            return new Tuple2<String, ArrayList<Tuple2<Long, String>>>(tuple._1,
+                                temp);
+                        }
+                    }
+        );
+        
+        System.out.println(prePlisAsList.take(100));
     }
+
+    
 
     /*public List<PositionListIndex> getPLIList() throws InputIterationException {
 
