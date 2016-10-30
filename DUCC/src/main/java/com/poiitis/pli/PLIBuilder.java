@@ -1,17 +1,16 @@
 package com.poiitis.pli;
 
+import com.google.common.collect.ArrayListMultimap;
 import com.poiitis.ducc.Adult;
-import com.poiitis.exceptions.InputIterationException;
-import it.unimi.dsi.fastutil.Hash;
+import com.poiitis.exceptions.InputIterationException;;
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
-import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.Function2;
 import org.apache.spark.api.java.function.PairFlatMapFunction;
 import org.apache.spark.api.java.function.PairFunction;
@@ -29,6 +28,7 @@ public class PLIBuilder implements Serializable{
     protected long numberOfTuples = -1;
     protected boolean nullEqualsNull;
     protected JavaRDD<Adult> adults;
+    protected JavaPairRDD<String, ArrayListMultimap<String, Long>> plis;
 
     public PLIBuilder(JavaRDD<Adult> adults) {
         this.adults = adults;
@@ -105,18 +105,24 @@ public class PLIBuilder implements Serializable{
                 return x;
         });
         
-        //TODO make sets of colName,[(rowNamei,....,rowNamej),....,(rowNamek,...,rowNamem]
-        // where sets of rows contain rows that have the same value for column colName
+        //extract final PLIs  
+        plis = groupsByColumn.mapToPair(
+            new PairFunction<Tuple2<String, ArrayList<Tuple2<Long, String>>>,
+                String, ArrayListMultimap<String, Long>>(){
+                    public Tuple2<String, ArrayListMultimap<String, Long>> call(Tuple2<String,
+                        ArrayList<Tuple2<Long, String>>> tuple){
+                        
+                        ArrayListMultimap<String, Long> multimap = ArrayListMultimap.create();
+                        
+                        for(Tuple2<Long, String> t : tuple._2){
+                            multimap.put(t._2, t._1);//cell value as key, rowNum as value
+                        }
+                        
+                        return new Tuple2<String, ArrayListMultimap<String, Long>>(tuple._1,
+                        multimap);
+                    }
+        });
+        
     }
-
-    
-
-    /*public List<PositionListIndex> getPLIList() throws InputIterationException {
-
-        List<PositionListIndex> result = new ArrayList<>();
-        //TODO continue method
-        JavaRDD<List<PositionListIndex>> rawPlis = getRawPlis();
-        return result;
-    }*/
 
 }
