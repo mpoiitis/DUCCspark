@@ -5,6 +5,7 @@ import com.poiitis.ducc.Adult;
 import com.poiitis.exceptions.InputIterationException;;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -68,24 +69,20 @@ public class PLIBuilder implements Serializable{
         this.numberOfTuples = count.first()._2;
         
         //list of all items of all adults in form col,(row,cellValue)
-        JavaPairRDD<String, Tuple2<Long,String>> prePlis = adults.flatMapToPair(
-                new PairFlatMapFunction<Adult, String, Tuple2<Long, String>>() {
-            public Iterator<Tuple2<String, Tuple2<Long, String>>> call(Adult adult) 
-                    throws Exception {
-                ArrayList<Tuple2<String, Tuple2<Long, String>>> result = new 
-                        ArrayList<>();
-                LinkedHashMap<String, String> lhmap = adult.getAttributes();
-                for(Map.Entry<String,String> entry : lhmap.entrySet()){
-                    Tuple2<Long, String> innerTuple = new Tuple2<>(adult.getLineNumber(), 
-                    entry.getValue());
-                    Tuple2<String, Tuple2<Long, String>> tuple = 
-                            new Tuple2<>(entry.getKey(), innerTuple);   
-                    
-                    result.add(tuple);
-                }
+        JavaPairRDD<String, Tuple2<Long,String>> prePlis = adults.flatMapToPair((Adult adult) -> {
+            ArrayList<Tuple2<String, Tuple2<Long, String>>> result = new
+                                ArrayList<>();
+            LinkedHashMap<String, String> lhmap = adult.getAttributes();
+            for(Map.Entry<String,String> entry : lhmap.entrySet()){
+                Tuple2<Long, String> innerTuple = new Tuple2<>(adult.getLineNumber(),
+                        entry.getValue());
+                Tuple2<String, Tuple2<Long, String>> tuple =
+                        new Tuple2<>(entry.getKey(), innerTuple);
                 
-                return result.iterator();
+                result.add(tuple);
             }
+            
+            return result.iterator();
         });
         
         //transform tuple to arraylist<tuple> so as to reduce them in plis
@@ -93,8 +90,7 @@ public class PLIBuilder implements Serializable{
             prePlis.mapToPair((Tuple2<String, Tuple2<Long, String>> tuple) -> {
                 ArrayList<Tuple2<Long, String>> temp = new ArrayList<>();
                 temp.add(tuple._2);
-                return new Tuple2<String, ArrayList<Tuple2<Long, String>>>(tuple._1,
-                        temp);
+                return new Tuple2<>(tuple._1, temp);
         });
         
         //group by column
@@ -106,23 +102,45 @@ public class PLIBuilder implements Serializable{
         });
         
         //extract final PLIs  
-        plis = groupsByColumn.mapToPair(
-            new PairFunction<Tuple2<String, ArrayList<Tuple2<Long, String>>>,
-                String, ArrayListMultimap<String, Long>>(){
-                    public Tuple2<String, ArrayListMultimap<String, Long>> call(Tuple2<String,
-                        ArrayList<Tuple2<Long, String>>> tuple){
-                        
-                        ArrayListMultimap<String, Long> multimap = ArrayListMultimap.create();
-                        
-                        for(Tuple2<Long, String> t : tuple._2){
-                            multimap.put(t._2, t._1);//cell value as key, rowNum as value
-                        }
-                        
-                        return new Tuple2<String, ArrayListMultimap<String, Long>>(tuple._1,
-                        multimap);
-                    }
+        JavaPairRDD<String, ArrayListMultimap<String, Long>> tempPlis = 
+                groupsByColumn.mapToPair((Tuple2<String,
+                ArrayList<Tuple2<Long, String>>> tuple) -> {
+            ArrayListMultimap<String, Long> multimap = ArrayListMultimap.create();
+            
+            for(Tuple2<Long, String> t : tuple._2){
+                multimap.put(t._2, t._1);//cell value as key, rowNum as value
+            }
+            
+            return new Tuple2<>(tuple._1, multimap);
         });
         
+        plis = purgePLIEntries(tempPlis);
+       
+    }
+    
+    /**
+     * 
+     *Removes PLIs that contain cellValues which correspond to a unique row 
+     * for a specific column
+     */
+    public JavaPairRDD<String, ArrayListMultimap<String, Long>> purgePLIEntries(JavaPairRDD<String,
+            ArrayListMultimap<String, Long>> rdd){        
+        
+        JavaPairRDD<String, ArrayListMultimap<String, Long>> purgedPlis = 
+            rdd.mapToPair((Tuple2<String, ArrayListMultimap<String, Long>> tuple) -> {
+                Iterator<String> keyIterator = tuple._2.keySet().iterator();
+                while(keyIterator.hasNext()){
+                    String key = keyIterator.next();
+                    Collection<Long> values = tuple._2.get(key);
+                    if(values.size() < 2){
+                        keyIterator.remove();
+                    }
+                }
+                
+                return new Tuple2<>(tuple._1, tuple._2);
+        });
+        
+        return purgedPlis;
     }
 
 }
