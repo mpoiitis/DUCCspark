@@ -2,7 +2,8 @@ package com.poiitis.pli;
 
 import com.google.common.collect.ArrayListMultimap;
 import com.poiitis.ducc.Adult;
-import com.poiitis.exceptions.InputIterationException;;
+import com.poiitis.exceptions.InputIterationException;import it.unimi.dsi.fastutil.longs.LongArrayList;
+;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -12,10 +13,9 @@ import java.util.List;
 import java.util.Map;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
+import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.Function2;
-import org.apache.spark.api.java.function.PairFlatMapFunction;
-import org.apache.spark.api.java.function.PairFunction;
-import org.apache.spark.storage.StorageLevel;
+
 import scala.Tuple2;
 
 /**
@@ -141,6 +141,25 @@ public class PLIBuilder implements Serializable{
         });
         
         return purgedPlis;
+    }
+    
+    /**
+     * Creates PositionListIndex items from the give multimap
+     * and returns them as a list
+     */
+    public JavaRDD<PositionListIndex> getPLIList(){
+        JavaRDD<PositionListIndex> result = plis.map((Tuple2<String, 
+                ArrayListMultimap<String, Long>> tuple) -> {
+            List<LongArrayList> list = new ArrayList<>();
+            for(String key : tuple._2.keySet()){
+                LongArrayList longList = new LongArrayList(tuple._2.get(key));
+                list.add(longList);
+            }
+            
+            return new PositionListIndex(tuple._1, list);
+        });
+        
+        return result;
     }
 
 }
