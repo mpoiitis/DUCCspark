@@ -1,6 +1,7 @@
 package com.poiitis.ducc;
 
 import com.poiitis.pli.PLIBuilder;
+import com.poiitis.pli.PositionListIndex;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
@@ -28,6 +29,8 @@ public class Main {
         
         PLIBuilder pliBuilder = new PLIBuilder(adults, true);
         pliBuilder.createInitialPLIs();
+        JavaRDD<PositionListIndex> plis = pliBuilder.getPLIList();
+        DuccAlgorithm duccAlgorithm = new DuccAlgorithm(parser.getColumnNames());
     }
     
 }
