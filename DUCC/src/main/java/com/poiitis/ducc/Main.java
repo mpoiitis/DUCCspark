@@ -1,7 +1,10 @@
 package com.poiitis.ducc;
 
+import com.poiitis.exceptions.AlgorithmExecutionException;
 import com.poiitis.pli.PLIBuilder;
 import com.poiitis.pli.PositionListIndex;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
@@ -31,6 +34,11 @@ public class Main {
         pliBuilder.createInitialPLIs();
         JavaRDD<PositionListIndex> plis = pliBuilder.getPLIList();
         DuccAlgorithm duccAlgorithm = new DuccAlgorithm(parser.getColumnNames());
+        try {
+            duccAlgorithm.run(plis);
+        } catch (AlgorithmExecutionException ex) {
+            Logger.getLogger(Main.class.getName()).log(Level.SEVERE, null, ex);
+        }
     }
     
 }
