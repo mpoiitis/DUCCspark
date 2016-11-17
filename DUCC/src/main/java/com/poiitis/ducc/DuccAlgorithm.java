@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import org.apache.spark.api.java.JavaRDD;
+import org.apache.spark.api.java.JavaSparkContext;
 import scala.Tuple2;
 
 /**
@@ -22,8 +23,10 @@ public class DuccAlgorithm {
     protected List<Tuple2<String,Integer>> columnNames;
     protected UccGraphTraverser graphTraverser;
     protected long desiredRawKeyError = 0;
+
     
     public DuccAlgorithm( List<Tuple2<String,Integer>> columnNames) {
+
         this.columnNames = columnNames;
         this.graphTraverser = new UccGraphTraverser();
     }
@@ -38,9 +41,9 @@ public class DuccAlgorithm {
         this.graphTraverser.setDesiredKeyError(keyError);
     }
 
-    public void run(JavaRDD<PositionListIndex> pliList) throws AlgorithmExecutionException {
+    public void run(JavaRDD<PositionListIndex> pliList, JavaSparkContext sc) throws AlgorithmExecutionException {
         this.found = 0;
-        this.graphTraverser.init(pliList,this.columnNames);
+        this.graphTraverser.init(pliList, this.columnNames, sc);
         //this.found = this.graphTraverser.traverseGraph();
     }
 /*
