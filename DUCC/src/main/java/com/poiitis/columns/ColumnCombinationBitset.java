@@ -1,5 +1,6 @@
 package com.poiitis.columns;
 
+import com.poiitis.utils.OpenBitSetSerializable;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -19,11 +20,11 @@ public class ColumnCombinationBitset implements Comparable<ColumnCombinationBits
 
     private static final long serialVersionUID = -6712712982034731872L;
 
-    protected OpenBitSet bitset;
+    protected transient OpenBitSetSerializable bitset;
     protected long size = 0;
 
     public ColumnCombinationBitset(int... columnIndeces) {
-        bitset = new OpenBitSet();
+        bitset = new OpenBitSetSerializable();
 
         for (int columnIndex : columnIndeces) {
             // If the bit was not yet set, increase the size.
@@ -47,38 +48,27 @@ public class ColumnCombinationBitset implements Comparable<ColumnCombinationBits
     public OpenBitSet getBitSet() {
         return bitset;
     }
-
-    /**
-     * Needed in order to return a ColumnCombinationBitset from its
-     * corresponding writable class
-     *
-     * @param obsw writable class of openBitset
-     */
+    
     public void setBitset(OpenBitSet obs) {
-        this.bitset = obs;
+        this.bitset.setBitSet(obs);
     }
 
     public long getSize() {
         return size;
     }
 
-    /**
-     * Same as setBitset method
-     *
-     * @param size the size of the bitset
-     */
     public void setSize(long size) {
         this.size = size;
     }
 
     /**
-     * Sets the given {@link OpenBitSet}, the previous state is overwritten!
+     * Sets the given OpenBitSet, the previous state is overwritten!
      *
      * @param bitset set on the existing ColumnCombinationBitset
      * @return the instance
      */
     protected ColumnCombinationBitset setColumns(OpenBitSet bitset) {
-        this.bitset = bitset;
+        this.bitset.setBitSet(bitset); 
         size = bitset.cardinality();
 
         return this;
@@ -542,7 +532,7 @@ public class ColumnCombinationBitset implements Comparable<ColumnCombinationBits
      */
     public ColumnCombinationBitset setAllBits(int dimension) {
         size = 0;
-        bitset = new OpenBitSet();
+        bitset = new OpenBitSetSerializable();
         for (int i = 0; i < dimension; i++) {
             addColumn(i);
         }
