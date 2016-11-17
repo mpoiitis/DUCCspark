@@ -35,7 +35,7 @@ public class Main {
         JavaRDD<PositionListIndex> plis = pliBuilder.getPLIList();
         DuccAlgorithm duccAlgorithm = new DuccAlgorithm(parser.getColumnNames());
         try {
-            duccAlgorithm.run(plis);
+            duccAlgorithm.run(plis, sc);
         } catch (AlgorithmExecutionException ex) {
             Logger.getLogger(Main.class.getName()).log(Level.SEVERE, null, ex);
         }
