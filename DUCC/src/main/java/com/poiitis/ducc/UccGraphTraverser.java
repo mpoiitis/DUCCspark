@@ -6,10 +6,10 @@ import com.poiitis.exceptions.CouldNotReceiveResultException;
 import com.poiitis.pli.PositionListIndex;
 import com.poiitis.utils.Singleton;
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 import org.apache.spark.api.java.JavaRDD;
-import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.Function;
 import scala.Tuple2;
 
@@ -42,23 +42,23 @@ extends GraphTraverser implements Serializable {
     }
 
     protected void filterNonUniqueColumnCombinationBitsets(JavaRDD<PositionListIndex> basePLIs) throws CouldNotReceiveResultException, ColumnNameMismatchException {
-
+       
         ColumnCombinationBitset temp = new ColumnCombinationBitset(new int[0]);
         //create broadcast variable so as to change in each pli
         this.bitmaskForNonUniqueColumns = Singleton.getSparkContext().broadcast(temp);
-
+        
         this.calculatedPlis = basePLIs.mapToPair((PositionListIndex pli) -> {
             //there is always a single column in pli as it is basepli
             Tuple2<String,Integer> tuple = pli.getName().get(0);
             ColumnCombinationBitset currentColumnCombination = new ColumnCombinationBitset(new int[]{tuple._2});
-
+            
             return new Tuple2<>(currentColumnCombination, pli);
         });
-
+        
         this.calculatedPlis.cache();
-
+        
         //keep only unique plis and add them to minimal graph
-        this.minimalPositives = this.calculatedPlis.filter(new Function<Tuple2<ColumnCombinationBitset,
+        this.minimalPositives = this.calculatedPlis.filter(new Function<Tuple2<ColumnCombinationBitset, 
                 PositionListIndex>, Boolean>() {
             @Override
             public Boolean call(Tuple2<ColumnCombinationBitset,
@@ -72,7 +72,7 @@ extends GraphTraverser implements Serializable {
                 return tuple._1;
             }
         });
-
+        
         //put all found unique column combinations in results
         this.results = this.minimalPositives;
 
@@ -87,7 +87,7 @@ extends GraphTraverser implements Serializable {
         });
 
         System.out.println(this.bitmaskForNonUniqueColumns.value().toString());
-
+                
     }
 
     protected List<ColumnCombinationBitset> buildInitialSeeds() {
@@ -98,10 +98,17 @@ extends GraphTraverser implements Serializable {
         return this.isUnique(this.getPLIFor(currentColumnCombination));
     }
 
+    /**
+     * Add column combination to minimalPositives and to results
+     */
     protected void addMinimalPositive(ColumnCombinationBitset positiveColumnCombination) throws CouldNotReceiveResultException, ColumnNameMismatchException {
-        /*this.minimalPositives.add(positiveColumnCombination);
-        this.resultReceiver.receiveResult(new UniqueColumnCombination(positiveColumnCombination.createColumnCombination(this.relationName, this.columnNames)));
-        */
+        
+        List<ColumnCombinationBitset> list = new ArrayList<>();
+        list.add(positiveColumnCombination);
+        JavaRDD<ColumnCombinationBitset> rdd = Singleton.getSparkContext().parallelize(list);
+
+        this.minimalPositives.union(rdd);
+        this.results.union(rdd);      
     }
 
     protected boolean isAdditionalConditionTrueForFindUnprunedSetAndUpdateGivenList(ColumnCombinationBitset singleSet) {
