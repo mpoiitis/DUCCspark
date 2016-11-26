@@ -5,7 +5,11 @@
  */
 package com.poiitis.utils;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.io.Serializable;
+import java.util.stream.Stream;
 import org.apache.lucene.util.OpenBitSet;
 
 /**
@@ -46,4 +50,15 @@ public class OpenBitSetSerializable extends OpenBitSet implements Serializable{
         this.setNumWords(obs.getNumWords());
     }
     
+    public void writeObject(ObjectOutputStream out) throws IOException{
+        out.defaultWriteObject();
+        out.writeObject(this.getBits());
+        out.writeInt(this.getNumWords());
+    }
+    
+    public void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException{
+        in.defaultReadObject();
+        this.setBits((long[]) in.readObject());
+        this.setNumWords(in.readInt());
+    }
 }
