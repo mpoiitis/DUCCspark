@@ -41,9 +41,9 @@ public class DuccAlgorithm {
         this.graphTraverser.setDesiredKeyError(keyError);
     }
 
-    public void run(JavaRDD<PositionListIndex> pliList, JavaSparkContext sc) throws AlgorithmExecutionException {
+    public void run(JavaRDD<PositionListIndex> pliList) throws AlgorithmExecutionException {
         this.found = 0;
-        this.graphTraverser.init(pliList, this.columnNames, sc);
+        this.graphTraverser.init(pliList, this.columnNames);
         //this.found = this.graphTraverser.traverseGraph();
     }
 /*
