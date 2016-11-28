@@ -18,6 +18,7 @@ import java.util.Random;
 import java.util.Set;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
+import org.apache.spark.api.java.function.Function;
 import org.apache.spark.broadcast.Broadcast;
 import scala.Tuple2;
 
@@ -39,12 +40,14 @@ public abstract class GraphTraverser implements Serializable{
     protected JavaRDD<ColumnCombinationBitset> minimalPositives;
     protected JavaRDD<ColumnCombinationBitset> maximalNegatives;
     protected Deque<ColumnCombinationBitset> randomWalkTrace = new LinkedList<ColumnCombinationBitset>();
-    protected List<ColumnCombinationBitset> seedCandidates;
+    protected JavaRDD<ColumnCombinationBitset> seedCandidates;
     protected HoleFinder holeFinder;
     protected Random random = new Random();
     protected int found;
     
-    /*
+    /**
+     * main traversal method
+     */
     public int traverseGraph() throws CouldNotReceiveResultException, ColumnNameMismatchException {
         this.found = 0;
         ColumnCombinationBitset currentColumn = this.getSeed();
@@ -55,6 +58,9 @@ public abstract class GraphTraverser implements Serializable{
         return this.found;
     }
     
+    /**
+     * random walk traversal implementation
+     */
     protected void randomWalk(ColumnCombinationBitset currentColumnCombination) throws CouldNotReceiveResultException, ColumnNameMismatchException {
         while (null != currentColumnCombination) {
             ColumnCombinationBitset newColumn;
@@ -71,7 +77,7 @@ public abstract class GraphTraverser implements Serializable{
             } else {
                 newColumn = this.getNextParentColumnCombination(currentColumnCombination);
                 if (null == newColumn) {
-                    this.maximalNegatives.add(currentColumnCombination);
+                    this.addMaximalNegatives(currentColumnCombination);
                     this.holeFinder.update(currentColumnCombination);
                 }
                 this.negativeGraph.add(currentColumnCombination);
@@ -98,11 +104,11 @@ public abstract class GraphTraverser implements Serializable{
         }
         return seedCandidate;
     }
-
+    
     protected List<ColumnCombinationBitset> getHoles() {
         return this.holeFinder.getHolesWithoutGivenColumnCombinations(this.minimalPositives);
-    }*/
-
+    }
+    
     protected PositionListIndex getPLIFor(ColumnCombinationBitset columnCombination) {
         
         PositionListIndex pli = this.getPli(columnCombination);
@@ -177,34 +183,41 @@ public abstract class GraphTraverser implements Serializable{
     public JavaPairRDD<ColumnCombinationBitset, PositionListIndex> getCalculatedPlis() {
         return this.calculatedPlis;
     }
-    /*
+    
     protected ColumnCombinationBitset getNextParentColumnCombination(ColumnCombinationBitset column) {
-        if (this.minimalPositives.contains((Object)column)) {
+        //if minimal positives contain column return null
+        if(!this.minimalPositives.filter((ColumnCombinationBitset ccb) -> ccb.equals(column)).isEmpty()){
             return null;
         }
-        List supersets = column.getDirectSupersets(this.bitmaskForNonUniqueColumns);
-        return this.findUnprunedSet(supersets);
+        List supersets = column.getDirectSupersets(this.bitmaskForNonUniqueColumns.value());
+        JavaRDD<ColumnCombinationBitset> supersetsRdd = Singleton.getSparkContext().parallelize(supersets);
+        
+        return this.findUnprunedSet(supersetsRdd);
     }
 
     protected ColumnCombinationBitset getNextChildColumnCombination(ColumnCombinationBitset column) {
         if (column.size() == 1) {
             return null;
         }
-        if (this.maximalNegatives.contains((Object)column)) {
+        //if maximal negatives contain column return null
+        if(!this.maximalNegatives.filter((ColumnCombinationBitset ccb) -> ccb.equals(column)).isEmpty()){
             return null;
         }
+        
         List subsets = column.getDirectSubsets();
-        return this.findUnprunedSet(subsets);
+        JavaRDD<ColumnCombinationBitset> subsetsRdd = Singleton.getSparkContext().parallelize(subsets);
+        return this.findUnprunedSet(subsetsRdd);
     }
-
-    protected ColumnCombinationBitset findUnprunedSet(List<ColumnCombinationBitset> sets) {
+    
+    protected ColumnCombinationBitset findUnprunedSet(JavaRDD<ColumnCombinationBitset> sets) {
         return this.findUnprunedSetAndUpdateGivenList(sets, false);
     }
-
-    protected ColumnCombinationBitset findUnprunedSetAndUpdateGivenList(List<ColumnCombinationBitset> sets, boolean setPrunedEntriesToNull) {
-        if (sets.isEmpty()) {
+    
+    protected ColumnCombinationBitset findUnprunedSetAndUpdateGivenList(JavaRDD<ColumnCombinationBitset> setsRdd, boolean setPrunedEntriesToNull) {
+        if (setsRdd.isEmpty()) {
             return null;
         }
+        List<ColumnCombinationBitset> sets = setsRdd.collect();
         int random = this.random.nextInt(sets.size());
         for (int i = 0; i < sets.size(); ++i) {
             int no = (i + random) % sets.size();
@@ -230,32 +243,50 @@ public abstract class GraphTraverser implements Serializable{
         return null;
     }
 
+    /**
+     * fill an rdd with the column combinations that are subsets of argument.
+     * Return true if there is at least one combination.
+     */
     protected boolean isSupersetOfPositiveColumnCombination(ColumnCombinationBitset currentColumnCombination) {
-        for (ColumnCombinationBitset ccb : this.minimalPositives) {
-            if (!ccb.isSubsetOf(currentColumnCombination)) continue;
-            return true;
-        }
-        return false;
+        return !this.minimalPositives.filter((ColumnCombinationBitset ccb) -> ccb.isSubsetOf(currentColumnCombination)).isEmpty();
     }
 
-    protected boolean isSubsetOfMaximalNegativeColumnCombination(ColumnCombinationBitset currentColumnCombination) {
-        for (ColumnCombinationBitset ccb : this.maximalNegatives) {
-            if (!ccb.containsSubset(currentColumnCombination)) continue;
-            return true;
-        }
-        return false;
+    /**
+     * fill an rdd with the column combinations that contain argument as subset.
+     * Return true if there is at least one combination.
+     */
+    protected boolean isSubsetOfMaximalNegativeColumnCombination(ColumnCombinationBitset currentColumnCombination) {   
+        return !this.maximalNegatives.filter((ColumnCombinationBitset ccb) -> ccb.containsSubset(currentColumnCombination)).isEmpty();
     }
-
+    
+    /**
+     * Add a column combination to minimal positives
+     */
     protected void addMinimalPositive(ColumnCombinationBitset positiveColumnCombination) throws CouldNotReceiveResultException, ColumnNameMismatchException {
-        this.minimalPositives.add(positiveColumnCombination);
+        List<ColumnCombinationBitset> list = new ArrayList<>();
+        list.add(positiveColumnCombination);
+        JavaRDD<ColumnCombinationBitset> rdd = Singleton.getSparkContext().parallelize(list);
+        
+        this.minimalPositives.union(rdd);
         ++this.found;
     }
+    
+    
+    /**
+     * Add a column combination to maximal negatives 
+     */
+    protected void addMaximalNegatives(ColumnCombinationBitset ccb) throws CouldNotReceiveResultException, ColumnNameMismatchException{
+        List<ColumnCombinationBitset> list = new ArrayList<>();
+        list.add(ccb);
+        JavaRDD<ColumnCombinationBitset> rdd = Singleton.getSparkContext().parallelize(list);
+        this.maximalNegatives.union(rdd);
+    }    
 
-    public Collection<ColumnCombinationBitset> getMinimalPositiveColumnCombinations() {
+    public JavaRDD<ColumnCombinationBitset> getMinimalPositiveColumnCombinations() {
         return this.minimalPositives;
     }
 
     protected abstract boolean isAdditionalConditionTrueForFindUnprunedSetAndUpdateGivenList(ColumnCombinationBitset var1);
-    */
+    
 }
 
