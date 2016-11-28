@@ -58,14 +58,8 @@ extends GraphTraverser implements Serializable {
         this.calculatedPlis.cache();
 
         //keep only unique plis and add them to minimal graph
-        this.minimalPositives = this.calculatedPlis.filter(new Function<Tuple2<ColumnCombinationBitset,
-                PositionListIndex>, Boolean>() {
-            @Override
-            public Boolean call(Tuple2<ColumnCombinationBitset,
-                    PositionListIndex> tuple) throws Exception {
-                return isUnique(tuple._2);
-            }
-        }).map(new Function<Tuple2<ColumnCombinationBitset, PositionListIndex>, ColumnCombinationBitset>() {
+        this.minimalPositives = this.calculatedPlis.filter((Tuple2<ColumnCombinationBitset,
+                PositionListIndex> tuple) -> isUnique(tuple._2)).map(new Function<Tuple2<ColumnCombinationBitset, PositionListIndex>, ColumnCombinationBitset>() {
             @Override
             public ColumnCombinationBitset call(Tuple2<ColumnCombinationBitset,
                     PositionListIndex> tuple) throws Exception {
