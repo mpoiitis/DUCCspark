@@ -7,18 +7,13 @@ import com.poiitis.pli.PositionListIndex;
 import com.poiitis.utils.Singleton;
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Deque;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 import java.util.Random;
-import java.util.Set;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
-import org.apache.spark.api.java.function.Function;
 import org.apache.spark.broadcast.Broadcast;
 import scala.Tuple2;
 
@@ -105,7 +100,7 @@ public abstract class GraphTraverser implements Serializable{
         return seedCandidate;
     }
     
-    protected List<ColumnCombinationBitset> getHoles() {
+    protected JavaRDD<ColumnCombinationBitset> getHoles() {
         return this.holeFinder.getHolesWithoutGivenColumnCombinations(this.minimalPositives);
     }
     
