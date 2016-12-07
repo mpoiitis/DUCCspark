@@ -10,6 +10,8 @@ import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.api.java.function.Function;
+import org.apache.spark.api.java.function.Function2;
+import org.apache.spark.api.java.function.PairFunction;
 import scala.Tuple2;
 
 /**
@@ -67,11 +69,17 @@ public class HoleFinder {
         JavaRDD<ColumnCombinationBitset> complementarySetsArray = Singleton.getSparkContext().emptyRDD();
         this.addPossibleCombinationsToComplementArray(complementarySetsArray, singleComplementMaxNegative);
         this.removeSubsetsFromComplementarySetsArray(complementarySetsArray);
+        this.complementarySet = complementarySetsArray.filter((ColumnCombinationBitset ccb) -> {
+            return ccb != null ? true : false;
+        });
+        
+        /*
         this.complementarySet.clear();
         for (ColumnCombinationBitset c : complementarySetsArray) {
             if (c == null) continue;
             this.complementarySet.add(c);
         }
+        */
     }
 
     protected void removeSubsetsFromComplementarySetsArray(JavaRDD<ColumnCombinationBitset> complementarySetsList) {
@@ -79,18 +87,36 @@ public class HoleFinder {
         JavaPairRDD<ColumnCombinationBitset,ColumnCombinationBitset> cartesian = 
                 complementarySetsList.cartesian(complementarySetsList);
         
-        complementarySetsList = cartesian.map(new Function<Tuple2<ColumnCombinationBitset, ColumnCombinationBitset>,
-            ColumnCombinationBitset>(){
-               public ColumnCombinationBitset call(Tuple2<ColumnCombinationBitset, ColumnCombinationBitset> tuple){
-                   if(tuple._1 != null){
-                       if(tuple._1 != tuple._2 && tuple._2 != null && tuple._2.containsSubset(tuple._1)){
-                           return null; 
-                       }
-                   }
+        //rdd containing col comb bitset name as key and col comb bitset as value in order to reduce by key.
+        //reduce: if either col comb bitset value is null return null, else the col comb bitset.
+        JavaPairRDD<String, ColumnCombinationBitset> reformedCartesian = cartesian.mapToPair(new PairFunction<Tuple2<ColumnCombinationBitset, ColumnCombinationBitset>,
+            String, ColumnCombinationBitset>(){
+                public Tuple2<String, ColumnCombinationBitset> call(Tuple2<ColumnCombinationBitset, ColumnCombinationBitset> tuple){
                    
-               }     
+                    if(tuple._1 != tuple._2 && tuple._2 != null && tuple._2.containsSubset(tuple._1)){
+                        return new Tuple2<>(tuple._2.toString(), null); 
+                    }
+                   
+                    return new Tuple2<>(tuple._2.toString(), tuple._2);
+                }     
+            }).reduceByKey(new Function2<ColumnCombinationBitset, ColumnCombinationBitset, ColumnCombinationBitset>(){
+                public ColumnCombinationBitset call(ColumnCombinationBitset ccb1, ColumnCombinationBitset ccb2){
+                    if(ccb1 == null || ccb2 == null){
+                        return null;
+                    }
+                    else{
+                        return ccb1;
+                    }
+                }
             });
         
+        complementarySetsList = reformedCartesian.map(new Function<Tuple2<String, ColumnCombinationBitset>, 
+                ColumnCombinationBitset>(){
+                    public ColumnCombinationBitset call(Tuple2<String, ColumnCombinationBitset> tuple){
+                        return tuple._2;
+                    }
+                });
+        /*
         for (int a = 0; a < complementarySetsList.size(); ++a) {
             if (complementarySetsList.get(a) == null) continue;
             for (int b = 0; b < complementarySetsList.size(); ++b) {
@@ -98,6 +124,7 @@ public class HoleFinder {
                 complementarySetsList.set(b, null);
             }
         }
+        */
     }
 
     protected void addPossibleCombinationsToComplementArray(JavaRDD<ColumnCombinationBitset> complementSet, ColumnCombinationBitset singleComplement) {
