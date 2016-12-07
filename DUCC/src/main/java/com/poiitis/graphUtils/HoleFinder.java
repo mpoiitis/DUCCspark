@@ -3,9 +3,7 @@ package com.poiitis.graphUtils;
 import com.poiitis.columns.ColumnCombinationBitset;
 import com.poiitis.utils.Singleton;
 import java.util.ArrayList;import java.util.Iterator;
-;
 import java.util.List;
-import java.util.Set;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.function.FlatMapFunction;
@@ -72,14 +70,6 @@ public class HoleFinder {
         this.complementarySet = complementarySetsArray.filter((ColumnCombinationBitset ccb) -> {
             return ccb != null ? true : false;
         });
-        
-        /*
-        this.complementarySet.clear();
-        for (ColumnCombinationBitset c : complementarySetsArray) {
-            if (c == null) continue;
-            this.complementarySet.add(c);
-        }
-        */
     }
 
     protected void removeSubsetsFromComplementarySetsArray(JavaRDD<ColumnCombinationBitset> complementarySetsList) {
@@ -116,15 +106,6 @@ public class HoleFinder {
                         return tuple._2;
                     }
                 });
-        /*
-        for (int a = 0; a < complementarySetsList.size(); ++a) {
-            if (complementarySetsList.get(a) == null) continue;
-            for (int b = 0; b < complementarySetsList.size(); ++b) {
-                if (a == b || complementarySetsList.get(b) == null || !complementarySetsList.get(b).containsSubset(complementarySetsList.get(a))) continue;
-                complementarySetsList.set(b, null);
-            }
-        }
-        */
     }
 
     protected void addPossibleCombinationsToComplementArray(JavaRDD<ColumnCombinationBitset> complementSet, ColumnCombinationBitset singleComplement) {
@@ -146,16 +127,5 @@ public class HoleFinder {
             }   
         });
         
-        /*
-        for (ColumnCombinationBitset set : this.complementarySet) {
-            ColumnCombinationBitset intersectedCombination = set.intersect(singleComplement);
-            if (intersectedCombination.getSetBits().size() != 0) {
-                complementSet.add(set);
-                continue;
-            }
-            for (ColumnCombinationBitset oneColumnBitSet : oneColumnBitSetsOfSingleComplement) {
-                complementSet.add(set.union(oneColumnBitSet));
-            }
-        }*/
     }
 }
