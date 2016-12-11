@@ -118,4 +118,9 @@ public class PruningGraph {
         });
     }
 
+    protected void addToSubKey(ColumnCombinationBitset key, ColumnCombinationBitset columnCombination, int keyLength) {
+        for (int i = 0; i < columnCombination.getNSubsetColumnCombinations(keyLength).size(); ++i) {
+            this.addToKey((ColumnCombinationBitset)columnCombination.getNSubsetColumnCombinations(keyLength).get(i), columnCombination, keyLength);
+        }
+    }
 }
