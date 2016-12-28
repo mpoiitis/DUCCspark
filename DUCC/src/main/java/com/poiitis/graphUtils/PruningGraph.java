@@ -1,3 +1,8 @@
+/*
+ * To change this license header, choose License Headers in Project Properties.
+ * To change this template file, choose Tools | Templates
+ * and open the template in the editor.
+ */
 package com.poiitis.graphUtils;
 
 import com.poiitis.columns.ColumnCombinationBitset;
@@ -85,20 +90,20 @@ public class PruningGraph {
                     if (columnCombinationList.size() >= OVERFLOW_THRESHOLD) {
                         List<ColumnCombinationBitset> unionList = overflow.collect();
                         //convert ccb to list(ccb). convert to pair with key,list(ccb)
-                        JavaPairRDD<ColumnCombinationBitset, List<ColumnCombinationBitset>> unionRdd =
+                        JavaPairRDD<ColumnCombinationBitset, List<ColumnCombinationBitset>> unionRdd = 
                             Singleton.getSparkContext().parallelize(unionList).map(new Function<ColumnCombinationBitset, List<ColumnCombinationBitset>>(){
                                 public List<ColumnCombinationBitset> call(ColumnCombinationBitset ccb){
                                     List<ColumnCombinationBitset> list = new ArrayList<>();
                                     list.add(ccb);
                                     return list;
-                                }
+                                } 
                             }).mapToPair(new PairFunction<List<ColumnCombinationBitset>,
                                 ColumnCombinationBitset, List<ColumnCombinationBitset>>(){
                                     public Tuple2<ColumnCombinationBitset, List<ColumnCombinationBitset>> call(List<ColumnCombinationBitset> list){
                                         return new Tuple2<>(key, list);
                                     }
                                 });
-
+                        
                         columnCombinationMap.union(unionRdd);
                         //combine lists of same key to one list
                         columnCombinationMap = columnCombinationMap.reduceByKey(new Function2<List<ColumnCombinationBitset>,
@@ -116,11 +121,76 @@ public class PruningGraph {
                 return tuple;//return input
             }
         });
+        /*
+        List<ColumnCombinationBitset> columnCombinationList = this.columnCombinationMap.get((Object)key);
+        if (null == columnCombinationList) {
+            columnCombinationList = new LinkedList<ColumnCombinationBitset>();
+            columnCombinationList.add(columnCombination);
+            this.columnCombinationMap.put(key, columnCombinationList);
+        } else if (this.overflow == columnCombinationList) {
+            this.addToSubKey(key, columnCombination, keyLength + 1);
+        } else if (!columnCombinationList.contains((Object)columnCombination)) {
+            Iterator<ColumnCombinationBitset> iterator = columnCombinationList.iterator();
+            while (iterator.hasNext()) {
+                ColumnCombinationBitset currentBitSet = iterator.next();
+                if (this.containsPositiveFeature) {
+                    if (columnCombination.containsSubset(currentBitSet)) {
+                        return;
+                    }
+                    if (!columnCombination.isSubsetOf(currentBitSet)) continue;
+                    iterator.remove();
+                    continue;
+                }
+                if (columnCombination.isSubsetOf(currentBitSet)) {
+                    return;
+                }
+                if (!columnCombination.containsSubset(currentBitSet)) continue;
+                iterator.remove();
+            }
+            columnCombinationList.add(columnCombination);
+            if (columnCombinationList.size() >= this.OVERFLOW_THRESHOLD) {
+                this.columnCombinationMap.put(key, this.OVERFLOW);
+                for (ColumnCombinationBitset subCombination : columnCombinationList) {
+                    this.addToSubKey(key, subCombination, keyLength + 1);
+                }
+            }
+        }
+        */
     }
 
     protected void addToSubKey(ColumnCombinationBitset key, ColumnCombinationBitset columnCombination, int keyLength) {
         for (int i = 0; i < columnCombination.getNSubsetColumnCombinations(keyLength).size(); ++i) {
             this.addToKey((ColumnCombinationBitset)columnCombination.getNSubsetColumnCombinations(keyLength).get(i), columnCombination, keyLength);
         }
+    }
+
+    public boolean find(ColumnCombinationBitset columnCombination) {
+        return this.findRecursively(columnCombination, new ColumnCombinationBitset(new int[0]), 1);
+    }
+
+    protected boolean findRecursively(ColumnCombinationBitset columnCombination, ColumnCombinationBitset subset, int n) {
+        List<ColumnCombinationBitset> keySetList = columnCombination.size() <= n ?
+                this.allBitsSet.getNSubsetColumnCombinationsSupersetOf(columnCombination, n) : 
+                columnCombination.getNSubsetColumnCombinationsSupersetOf(subset, n);
+        for (ColumnCombinationBitset keySet : keySetList) {
+            List<ColumnCombinationBitset> currentColumnCombinations = columnCombinationMap.filter(new Function<Tuple2<ColumnCombinationBitset,
+                    List<ColumnCombinationBitset>>, Boolean>(){
+                       public Boolean call(Tuple2<ColumnCombinationBitset, List<ColumnCombinationBitset>> tuple){
+                           return tuple._1.equals((Object) keySet);
+                       } 
+                    }).values().first();
+            //List<ColumnCombinationBitset> currentColumnCombinations = this.columnCombinationMap.get((Object)keySet);
+            if (currentColumnCombinations != this.overflow && currentColumnCombinations != null) {
+                for (ColumnCombinationBitset currentColumnBitset : currentColumnCombinations) {
+                    if (!(this.containsPositiveFeature ? columnCombination.containsSubset(currentColumnBitset) :
+                            columnCombination.isSubsetOf(currentColumnBitset))) continue;
+                    return true;
+                }
+                continue;
+            }
+            if (this.overflow != currentColumnCombinations || !this.findRecursively(columnCombination, keySet, n + 1)) continue;
+            return true;
+        }
+        return false;
     }
 }
