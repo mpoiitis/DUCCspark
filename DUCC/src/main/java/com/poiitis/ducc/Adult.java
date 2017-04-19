@@ -33,6 +33,10 @@ public class Adult implements Serializable{
         this.lineNumber = line;
     }
     
+    public String toString(){
+        return lineNumber + " " + attributes.toString();
+    }
+    
     public LinkedHashMap<Tuple2<String,Integer>,String> getAttributes(){return this.attributes;}
     public int getLineNumber(){return this.lineNumber;}
     

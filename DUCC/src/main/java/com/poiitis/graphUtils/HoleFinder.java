@@ -2,22 +2,25 @@ package com.poiitis.graphUtils;
 
 import com.poiitis.columns.ColumnCombinationBitset;
 import com.poiitis.utils.Singleton;
-import java.util.ArrayList;import java.util.Iterator;
+import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.List;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
-import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.Function2;
 import org.apache.spark.api.java.function.PairFunction;
+import org.apache.spark.broadcast.Broadcast;
 import scala.Tuple2;
 
 /**
  *
  * @author Marinos Poiitis
  */
-public class HoleFinder {
-    protected JavaRDD<ColumnCombinationBitset> complementarySet;
+public class HoleFinder implements Serializable{
+
+    private static final long serialVersionUID = 6776853479213293743L;
+    protected JavaRDD<ColumnCombinationBitset> complementarySet = Singleton.getSparkContext().emptyRDD();
     protected ColumnCombinationBitset allBitsSet = new ColumnCombinationBitset(new int[0]);
 
     public HoleFinder(int numberOfColumns) {
@@ -41,6 +44,7 @@ public class HoleFinder {
      * remove a given list of column combinations from complementary set 
      */
     public void removeMinimalPositivesFromComplementarySet(List<ColumnCombinationBitset> sets) {
+        
         JavaRDD<ColumnCombinationBitset> rdd = Singleton.getSparkContext().parallelize(sets);
         this.complementarySet = this.complementarySet.subtract(rdd);
     }
@@ -48,31 +52,36 @@ public class HoleFinder {
     /**
      * remove a column combination from complementary set 
      */
-    public void removeMinimalPositiveFromComplementarySet(ColumnCombinationBitset set) {
+    public void removeMinimalPositiveFromComplementarySet(ColumnCombinationBitset ccb) {
+        
         List<ColumnCombinationBitset> sets = new ArrayList<>();
-        sets.add(set);
+        sets.add(ccb);
         JavaRDD<ColumnCombinationBitset> rdd = Singleton.getSparkContext().parallelize(sets);
         this.complementarySet = this.complementarySet.subtract(rdd);
     }
 
     public void update(ColumnCombinationBitset maximalNegative) {
+
         ColumnCombinationBitset singleComplementMaxNegative = this.allBitsSet.minus(maximalNegative);
-        if (this.complementarySet.collect().size() == 0) {
+        if (this.complementarySet.count() == 0) {
             List<ColumnCombinationBitset> list = singleComplementMaxNegative.getContainedOneColumnCombinations();
             JavaRDD<ColumnCombinationBitset> rdd = Singleton.getSparkContext().parallelize(list);
+            
             this.complementarySet = this.complementarySet.union(rdd);
             
             return;
         }
-        JavaRDD<ColumnCombinationBitset> complementarySetsArray = Singleton.getSparkContext().emptyRDD();
-        this.addPossibleCombinationsToComplementArray(complementarySetsArray, singleComplementMaxNegative);
-        this.removeSubsetsFromComplementarySetsArray(complementarySetsArray);
+        JavaRDD<ColumnCombinationBitset> complementarySetsArray = this.addPossibleCombinationsToComplementArray(singleComplementMaxNegative);
+        
+        complementarySetsArray = this.removeSubsetsFromComplementarySetsArray(complementarySetsArray);
+        
         this.complementarySet = complementarySetsArray.filter((ColumnCombinationBitset ccb) -> {
             return ccb != null ? true : false;
         });
+        
     }
 
-    protected void removeSubsetsFromComplementarySetsArray(JavaRDD<ColumnCombinationBitset> complementarySetsList) {
+    protected JavaRDD<ColumnCombinationBitset> removeSubsetsFromComplementarySetsArray(JavaRDD<ColumnCombinationBitset> complementarySetsList) {
         //get all possible combinations. just like nested for loops
         JavaPairRDD<ColumnCombinationBitset,ColumnCombinationBitset> cartesian = 
                 complementarySetsList.cartesian(complementarySetsList);
@@ -83,10 +92,9 @@ public class HoleFinder {
             String, ColumnCombinationBitset>(){
                 public Tuple2<String, ColumnCombinationBitset> call(Tuple2<ColumnCombinationBitset, ColumnCombinationBitset> tuple){
                    
-                    if(tuple._1 != tuple._2 && tuple._2 != null && tuple._2.containsSubset(tuple._1)){
+                    if(!tuple._1.equals(tuple._2) && tuple._2 != null && tuple._2.containsSubset(tuple._1)){
                         return new Tuple2<>(tuple._2.toString(), null); 
                     }
-                   
                     return new Tuple2<>(tuple._2.toString(), tuple._2);
                 }     
             }).reduceByKey(new Function2<ColumnCombinationBitset, ColumnCombinationBitset, ColumnCombinationBitset>(){
@@ -106,26 +114,35 @@ public class HoleFinder {
                         return tuple._2;
                     }
                 });
+
+        return complementarySetsList;
     }
 
-    protected void addPossibleCombinationsToComplementArray(JavaRDD<ColumnCombinationBitset> complementSet, ColumnCombinationBitset singleComplement) {
+    protected JavaRDD<ColumnCombinationBitset> addPossibleCombinationsToComplementArray(ColumnCombinationBitset singleComplement) {
         List<ColumnCombinationBitset> oneColumnBitSetsOfSingleComplement = singleComplement.getContainedOneColumnCombinations();
         
-        complementSet = this.complementarySet.flatMap(new FlatMapFunction<ColumnCombinationBitset, ColumnCombinationBitset>(){
-            public Iterator<ColumnCombinationBitset> call(ColumnCombinationBitset ccb){
-                ColumnCombinationBitset intersectedCombination = ccb.intersect(singleComplement);
-                if(intersectedCombination.getSetBits().size() !=0){
-                    ArrayList<ColumnCombinationBitset> list = new ArrayList<>();
-                    list.add(ccb);
-                    return list.iterator();
-                }
+        List<Broadcast<ColumnCombinationBitset>> bList = new ArrayList<>();
+        for(ColumnCombinationBitset c : oneColumnBitSetsOfSingleComplement){
+            Broadcast<ColumnCombinationBitset> bC = Singleton.getSparkContext().broadcast(c);
+            bList.add(bC);
+        }
+        
+        Broadcast<ColumnCombinationBitset> bSingleComplement = Singleton.getSparkContext().broadcast(singleComplement);
+        
+        JavaRDD<ColumnCombinationBitset> complementSet = this.complementarySet.flatMap((ColumnCombinationBitset ccb) -> {
+            ColumnCombinationBitset intersectedCombination = ccb.intersect(bSingleComplement.value());
+            if(intersectedCombination.getSetBits().size() !=0){
                 ArrayList<ColumnCombinationBitset> list = new ArrayList<>();
-                for (ColumnCombinationBitset oneColumnBitSet : oneColumnBitSetsOfSingleComplement) {
-                    list.add(ccb.union(oneColumnBitSet));
-                }
+                list.add(ccb);
                 return list.iterator();
             }   
+            ArrayList<ColumnCombinationBitset> list = new ArrayList<>();
+            for (Broadcast<ColumnCombinationBitset> oneColumnBitSet : bList) {
+                list.add(ccb.union(oneColumnBitSet.value()));
+            }
+            return list.iterator();
         });
         
+        return complementSet;
     }
 }

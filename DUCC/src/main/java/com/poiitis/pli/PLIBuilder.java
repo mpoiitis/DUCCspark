@@ -1,19 +1,18 @@
 package com.poiitis.pli;
 
-import com.google.common.collect.ArrayListMultimap;
 import com.poiitis.ducc.Adult;
 import com.poiitis.exceptions.InputIterationException;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
-import org.apache.spark.api.java.function.Function2;
 
 import scala.Tuple2;
 
@@ -28,17 +27,17 @@ public class PLIBuilder implements Serializable{
     protected int numberOfTuples = -1;
     protected boolean nullEqualsNull;
     protected JavaRDD<Adult> adults;
-    protected JavaPairRDD<Tuple2<String,Integer>, ArrayListMultimap<String, Integer>> plis;
+    protected JavaPairRDD<Tuple2<String,Integer>, HashMap<String, ArrayList<Integer>>> plis;
 
     public PLIBuilder(JavaRDD<Adult> adults) {
         this.adults = adults;
-        //adults.persist(StorageLevel.MEMORY_AND_DISK_SER());
+        this.adults = this.adults.cache();
         this.nullEqualsNull = true;
     }
 
     public PLIBuilder(JavaRDD<Adult> adults, boolean nullEqualsNull) {
         this.adults = adults;
-        //adults.persist(StorageLevel.MEMORY_AND_DISK_SER());
+        this.adults = this.adults.cache();
         this.nullEqualsNull = nullEqualsNull;
     }
 
@@ -60,15 +59,10 @@ public class PLIBuilder implements Serializable{
 
     public void createInitialPLIs() {
 
-        //calculate number of rows in dataset
-        JavaPairRDD<String, Integer> count = adults.mapToPair((Adult x) -> new 
-            Tuple2("dummyKey", 1)).reduceByKey(new Function2<Integer, Integer, Integer>(){
-            public Integer call(Integer x, Integer y){ return x + y;}});
-
-        this.numberOfTuples = count.first()._2;
+        this.numberOfTuples = (int) this.adults.count();
         
         //list of all items of all adults in form (colName,colIndex),(row,cellValue)
-        JavaPairRDD<Tuple2<String,Integer>, Tuple2<Integer,String>> prePlis = adults.flatMapToPair((Adult adult) -> {
+        JavaPairRDD<Tuple2<String,Integer>, Tuple2<Integer,String>> prePlis = this.adults.flatMapToPair((Adult adult) -> {
             ArrayList<Tuple2<Tuple2<String,Integer>, Tuple2<Integer, String>>> result = new
                                 ArrayList<>();
             LinkedHashMap<Tuple2<String,Integer>, String> lhmap = adult.getAttributes();
@@ -80,10 +74,9 @@ public class PLIBuilder implements Serializable{
                 
                 result.add(tuple);
             }
-            
             return result.iterator();
         });
-        
+
         //transform tuple to arraylist<tuple> so as to reduce them in plis
         JavaPairRDD<Tuple2<String,Integer>, ArrayList<Tuple2<Integer, String>>> prePlisAsList = 
             prePlis.mapToPair((Tuple2<Tuple2<String, Integer>, Tuple2<Integer, String>> tuple) -> {
@@ -101,20 +94,27 @@ public class PLIBuilder implements Serializable{
         });
         
         //extract final PLIs  
-        JavaPairRDD<Tuple2<String,Integer>, ArrayListMultimap<String, Integer>> tempPlis = 
+        JavaPairRDD<Tuple2<String,Integer>, HashMap<String, ArrayList<Integer>>> tempPlis = 
                 groupsByColumn.mapToPair((Tuple2<Tuple2<String,Integer>,
                 ArrayList<Tuple2<Integer, String>>> tuple) -> {
-            ArrayListMultimap<String, Integer> multimap = ArrayListMultimap.create();
-            
+            HashMap<String, ArrayList<Integer>> multimap = new HashMap<>();
             for(Tuple2<Integer, String> t : tuple._2){
-                multimap.put(t._2, t._1);//cell value as key, rowNum as value
+                ArrayList<Integer> get = multimap.get(t._2);
+                if( get != null){
+                    get.add(t._1);
+                }
+                else
+                {
+                    ArrayList<Integer> temp = new ArrayList<>();
+                    temp.add(t._1);
+                    multimap.put(t._2, temp);
+                }
             }
-            
+
             return new Tuple2<>(tuple._1, multimap);
         });
-        
-        plis = purgePLIEntries(tempPlis);
-       
+
+        this.plis = purgePLIEntries(tempPlis);      
     }
     
     /**
@@ -122,11 +122,11 @@ public class PLIBuilder implements Serializable{
      *Removes PLIs that contain cellValues which correspond to a unique row 
      * for a specific column
      */
-    public JavaPairRDD<Tuple2<String,Integer>, ArrayListMultimap<String, Integer>> purgePLIEntries(JavaPairRDD<Tuple2<String,Integer>,
-            ArrayListMultimap<String, Integer>> rdd){        
+    public JavaPairRDD<Tuple2<String,Integer>, HashMap<String, ArrayList<Integer>>> purgePLIEntries(JavaPairRDD<Tuple2<String,Integer>,
+            HashMap<String, ArrayList<Integer>>> rdd){        
         
-        JavaPairRDD<Tuple2<String,Integer>, ArrayListMultimap<String, Integer>> purgedPlis = 
-            rdd.mapToPair((Tuple2<Tuple2<String,Integer>, ArrayListMultimap<String, Integer>> tuple) -> {
+        JavaPairRDD<Tuple2<String,Integer>, HashMap<String, ArrayList<Integer>>> purgedPlis = 
+            rdd.mapToPair((Tuple2<Tuple2<String,Integer>, HashMap<String, ArrayList<Integer>>> tuple) -> {
                 Iterator<String> keyIterator = tuple._2.keySet().iterator();
                 while(keyIterator.hasNext()){
                     String key = keyIterator.next();
@@ -138,17 +138,17 @@ public class PLIBuilder implements Serializable{
                 
                 return new Tuple2<>(tuple._1, tuple._2);
         });
-        
+
         return purgedPlis;
     }
     
     /**
-     * Creates PositionListIndex items from the give multimap
+     * Creates PositionListIndex items from the given multimap
      * and returns them as a list
      */
     public JavaRDD<PositionListIndex> getPLIList(){
         JavaRDD<PositionListIndex> result = plis.map((Tuple2<Tuple2<String,Integer>, 
-                ArrayListMultimap<String, Integer>> tuple) -> {
+                HashMap<String, ArrayList<Integer>>> tuple) -> {
             List<IntArrayList> list = new ArrayList<>();
             for(String key : tuple._2.keySet()){
                 IntArrayList intList = new IntArrayList(tuple._2.get(key));
@@ -157,7 +157,7 @@ public class PLIBuilder implements Serializable{
             
             return new PositionListIndex(tuple._1, list);
         });
-        
+        this.adults.unpersist();// it is the last called function
         return result;
     }
 

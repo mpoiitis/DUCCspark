@@ -80,6 +80,19 @@ public class PositionListIndex implements Serializable{
         return clusters;
     }
 
+    @Override
+    public String toString(){
+        StringBuilder stringBuilder = new StringBuilder();
+        ArrayList<Tuple2<String,Integer>> names = this.getName();
+        for(Tuple2<String,Integer> name : names){
+            stringBuilder.append(name._1 + ", " + name._2 + "   ");
+        }
+        stringBuilder.append("\n");
+        for(IntArrayList a : this.getClusters()){
+            stringBuilder.append(a.toString());
+        }
+        return stringBuilder.toString();
+    }
     /**
      * Creates a complete (deep) copy 
      *

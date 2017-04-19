@@ -20,9 +20,13 @@ public class ColumnCombinationBitset implements Comparable<ColumnCombinationBits
 
     private static final long serialVersionUID = -6712712982034731872L;
 
-    protected transient OpenBitSetSerializable bitset;
+    protected OpenBitSetSerializable bitset;
     protected long size = 0;
 
+    public ColumnCombinationBitset(){
+        bitset = new OpenBitSetSerializable();
+    }
+    
     public ColumnCombinationBitset(int... columnIndeces) {
         bitset = new OpenBitSetSerializable();
 
@@ -68,7 +72,10 @@ public class ColumnCombinationBitset implements Comparable<ColumnCombinationBits
      * @return the instance
      */
     protected ColumnCombinationBitset setColumns(OpenBitSet bitset) {
-        this.bitset.setBitSet(bitset); 
+        if(this.bitset == null){
+            this.bitset = new OpenBitSetSerializable();
+        }
+        this.bitset.setBitSet(bitset);
         size = bitset.cardinality();
 
         return this;
@@ -140,9 +147,8 @@ public class ColumnCombinationBitset implements Comparable<ColumnCombinationBits
     @Override
     public String toString() {
         StringBuilder stringBuilder = new StringBuilder();
-
         stringBuilder.append("ColumnCombinationBitset ");
-
+        
         int lastSetBitIndex = bitset.prevSetBit(bitset.length());
 
         for (int i = 0; i <= lastSetBitIndex; i++) {
@@ -203,6 +209,32 @@ public class ColumnCombinationBitset implements Comparable<ColumnCombinationBits
     }
 
     /**
+     * Returns all supersets of the column combination (including the full). The
+     * supersets include the original column combination (not proper supersets).
+     *
+     * @return supersets
+     */
+    public List<ColumnCombinationBitset> getAllSupersets(int numOfColumns) {
+        List<ColumnCombinationBitset> supersets = new LinkedList<>();
+
+        Queue<ColumnCombinationBitset> currentLevel = new LinkedList<>();
+        currentLevel.add(this);
+        supersets.add(this);
+        Set<ColumnCombinationBitset> nextLevel = new HashSet<>();
+        for (int level = size(); level < numOfColumns + 1; level++) {
+            while (!currentLevel.isEmpty()) {
+                ColumnCombinationBitset currentColumnCombination = currentLevel.remove();
+                nextLevel.addAll(currentColumnCombination.getDirectSupersets(numOfColumns));
+            }
+            currentLevel.addAll(nextLevel);
+            supersets.addAll(nextLevel);
+            nextLevel.clear();
+        }
+
+        return supersets;
+    }
+    
+    /**
      * Returns all subset of the column combination (including the empty). The
      * subsets include the original column combination (not proper subsets).
      *
@@ -216,6 +248,32 @@ public class ColumnCombinationBitset implements Comparable<ColumnCombinationBits
         subsets.add(this);
         Set<ColumnCombinationBitset> nextLevel = new HashSet<>();
         for (int level = size(); level > 0; level--) {
+            while (!currentLevel.isEmpty()) {
+                ColumnCombinationBitset currentColumnCombination = currentLevel.remove();
+                nextLevel.addAll(currentColumnCombination.getDirectSubsets());
+            }
+            currentLevel.addAll(nextLevel);
+            subsets.addAll(nextLevel);
+            nextLevel.clear();
+        }
+
+        return subsets;
+    }
+    
+    /**
+     * Returns all subset of the column combination (does not include the empty). The
+     * subsets include the original column combination (not proper subsets).
+     *
+     * @return subsets
+     */
+    public List<ColumnCombinationBitset> getAllSubsetsNoZero() {
+        List<ColumnCombinationBitset> subsets = new LinkedList<>();
+
+        Queue<ColumnCombinationBitset> currentLevel = new LinkedList<>();
+        currentLevel.add(this);
+        subsets.add(this);
+        Set<ColumnCombinationBitset> nextLevel = new HashSet<>();
+        for (int level = size(); level > 1; level--) {
             while (!currentLevel.isEmpty()) {
                 ColumnCombinationBitset currentColumnCombination = currentLevel.remove();
                 nextLevel.addAll(currentColumnCombination.getDirectSubsets());
@@ -374,7 +432,7 @@ public class ColumnCombinationBitset implements Comparable<ColumnCombinationBits
 
         OpenBitSet temporaryBitset = bitset.clone();
         temporaryBitset.andNot(otherColumnCombination.bitset);
-
+        
         return new ColumnCombinationBitset().setColumns(temporaryBitset);
     }
 
@@ -453,6 +511,7 @@ public class ColumnCombinationBitset implements Comparable<ColumnCombinationBits
 
         return supersets;
     }
+    
 
     /**
      * Generates the direct subset column combinations.

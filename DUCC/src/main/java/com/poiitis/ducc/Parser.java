@@ -1,12 +1,14 @@
 package com.poiitis.ducc;
 
 import com.google.common.collect.ImmutableList;
+import com.poiitis.utils.Singleton;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.function.Function;
-import org.apache.spark.util.LongAccumulator;
+import org.apache.spark.broadcast.Broadcast;
 import scala.Tuple2;
 
 /**
@@ -43,23 +45,26 @@ public class Parser implements Serializable{
     
     public ArrayList<Tuple2<String,Integer>> getColumnNames(){return columnNames;}
     
-    public JavaRDD<Adult> parseFile(LongAccumulator lineNumber){
+    public JavaRDD<Adult> parseFile(){
         
-        JavaRDD<Adult> rdd_adults = input.map(
-            new Function<String, Adult>(){
-                public Adult call(String line) throws Exception {
-                    String[] fields = line.split(",");
+        JavaPairRDD<String, Long> temp = this.input.zipWithIndex();
+        
+        Broadcast<ArrayList<Tuple2<String,Integer>>> bColNames = Singleton.getSparkContext().broadcast(this.columnNames);
+        
+        JavaRDD<Adult> rdd_adults = temp.map(
+            new Function<Tuple2<String, Long>, Adult>(){
+                public Adult call(Tuple2<String, Long> tuple) throws Exception {
+                    String[] fields = tuple._1.split(",");
                     //turn array to list
                     List<String> temp = ImmutableList.copyOf(fields);
                     ArrayList<String> fieldsList = new ArrayList<>(temp);
                     
-                    Adult adult = new Adult(columnNames, fieldsList, 
-                            lineNumber.value().intValue());
-                    lineNumber.add(1);
+                    Adult adult = new Adult(bColNames.value(), fieldsList, 
+                            tuple._2.intValue());
                     return adult;
                 }
             });
-        
+
         return rdd_adults;
     }
 }

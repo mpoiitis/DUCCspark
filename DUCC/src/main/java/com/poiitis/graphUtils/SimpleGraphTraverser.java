@@ -21,7 +21,7 @@ import scala.Tuple2;
  *
  * @author Marinos Poiitis
  */
-public abstract class GraphTraverser implements Serializable{
+public abstract class SimpleGraphTraverser implements Serializable{
 
     private static final long serialVersionUID = -6985441634862426686L;
     protected int OVERFLOW_THRESHOLD = 10000;
@@ -30,8 +30,8 @@ public abstract class GraphTraverser implements Serializable{
     protected List<ColumnCombinationBitset> calculatedPliBitsetStack = new LinkedList<ColumnCombinationBitset>();
     protected ColumnCombinationBitset bitmaskForNonUniqueColumns = new ColumnCombinationBitset();
     protected int numberOfColumns;
-    protected PruningGraph negativeGraph;
-    protected PruningGraph positiveGraph;
+    protected SimplePruningGraph negativeGraph;
+    protected SimplePruningGraph positiveGraph;
     protected JavaRDD<ColumnCombinationBitset> minimalPositives = Singleton.getSparkContext().emptyRDD();
     protected JavaRDD<ColumnCombinationBitset> maximalNegatives = Singleton.getSparkContext().emptyRDD();
     protected Deque<ColumnCombinationBitset> randomWalkTrace = new LinkedList<ColumnCombinationBitset>();
@@ -46,7 +46,7 @@ public abstract class GraphTraverser implements Serializable{
      */
     public int traverseGraph() throws CouldNotReceiveResultException, ColumnNameMismatchException {
         this.found = 0;
-        ColumnCombinationBitset currentColumn = this.getSeed();
+        ColumnCombinationBitset currentColumn = this.getSeed();       
         while (null != currentColumn) {
             this.randomWalk(currentColumn);
             currentColumn = this.getSeed();
@@ -61,38 +61,31 @@ public abstract class GraphTraverser implements Serializable{
         while (null != currentColumnCombination) {
             ColumnCombinationBitset newColumn = null;
             if (this.isSubsetOfMaximalNegativeColumnCombination(currentColumnCombination)) {
-                System.out.println(currentColumnCombination.toString() + " Subset of Maximal Negative");
                 newColumn = null;
             } else if (this.isSupersetOfPositiveColumnCombination(currentColumnCombination)) {
-                System.out.println(currentColumnCombination.toString() + " Superset of Positive");
                 newColumn = null;
             } else if (this.isPositiveColumnCombination(currentColumnCombination)) {
-                System.out.println(currentColumnCombination.toString() + " Positive");
+                this.positiveGraph.add(currentColumnCombination);
                 newColumn = this.getNextChildColumnCombination(currentColumnCombination);
                 if (null == newColumn) {
                     this.addMinimalPositive(currentColumnCombination);
-                }
-                this.positiveGraph.add(currentColumnCombination);               
+                }               
             } else if (!this.isPositiveColumnCombination(currentColumnCombination)){
-                System.out.println(currentColumnCombination.toString() + " Not Positive");
+                this.negativeGraph.add(currentColumnCombination);
                 newColumn = this.getNextParentColumnCombination(currentColumnCombination);
                 if (null == newColumn) {
                     this.addMaximalNegatives(currentColumnCombination);
                     this.holeFinder.update(currentColumnCombination);
                 }
-                this.negativeGraph.add(currentColumnCombination);
             }
             if (null != newColumn) {
-                System.out.println("Push");
                 this.randomWalkTrace.push(currentColumnCombination);
                 currentColumnCombination = newColumn;
                 continue;
             }
             if (this.randomWalkTrace.isEmpty()) {
-                System.out.println("Return");
                 return;
             }
-            System.out.println("Pop");
             currentColumnCombination = this.randomWalkTrace.poll();
         }
     }
@@ -106,8 +99,7 @@ public abstract class GraphTraverser implements Serializable{
             
             seedCandidate = this.findUnprunedSetAndUpdateGivenList(this.seedCandidates, true);
         }
-        if(seedCandidate != null) System.out.println("Seed " + seedCandidate.toString());
-        else System.out.println("Seed Null");
+        
         return seedCandidate;
     }
     
@@ -147,7 +139,15 @@ public abstract class GraphTraverser implements Serializable{
     
     protected PositionListIndex createPliFromExistingPli(ColumnCombinationBitset columnCombination) {
         int counter = 0;
-        ColumnCombinationBitset currentBestSet = (ColumnCombinationBitset)columnCombination.getContainedOneColumnCombinations().get(0);
+        
+        List<ColumnCombinationBitset> containedOneColumnCombinations = columnCombination.getContainedOneColumnCombinations();
+        
+        if(containedOneColumnCombinations.isEmpty()){
+            return new PositionListIndex();   
+        }
+        
+        ColumnCombinationBitset currentBestSet = containedOneColumnCombinations.get(0);
+        
         ColumnCombinationBitset currentBestMinusSet = columnCombination.minus(currentBestSet);
         Iterator<ColumnCombinationBitset> itr = this.calculatedPliBitsetStack.iterator();
         while (itr.hasNext() && counter < this.PLI_SEARCH_THRESHOLD) {
@@ -261,19 +261,17 @@ public abstract class GraphTraverser implements Serializable{
                 sets.set(no, null);
                 continue;
             }
-            if (this.positiveGraph.find(singleSet) /*|| this.isMinimalPositive(singleSet)*/) {
-                System.out.println(singleSet.toString() + " positive (findUnpruned)");
+            if (this.positiveGraph.find(singleSet)) {
                 if (!setPrunedEntriesToNull) continue;
                 sets.set(no, null);
                 continue;
             }
-            if (this.negativeGraph.find(singleSet) /*|| this.isMaximalNegative(singleSet)*/) {
-                System.out.println(singleSet.toString() + " negative (findUnpruned)");
+            if (this.negativeGraph.find(singleSet)) {
                 if (!setPrunedEntriesToNull) continue;
                 sets.set(no, null);
                 continue;
             }
-            System.out.println(singleSet.toString() + " nothing yet (findUnpruned)");
+            
             return singleSet;
         }
         return null;

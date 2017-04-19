@@ -19,24 +19,24 @@ import scala.Tuple2;
  *
  * @author Marinos Poiitis
  */
-public class UccGraphTraverser
-extends GraphTraverser implements Serializable {
+public class SimpleUccGraphTraverser
+extends SimpleGraphTraverser implements Serializable {
 
     private static final long serialVersionUID = -1252806705177680171L;
     protected List<Tuple2<String,Integer>> columnNames;
     protected long desiredKeyError = 0;
 
-    public UccGraphTraverser() {
+    public SimpleUccGraphTraverser() {
     }
 
-    public UccGraphTraverser(Random random) {
+    public SimpleUccGraphTraverser(Random random) {
         this();
         this.random = random;
     }
 
     public void saveResults(String outputPath){
-        if(!minimalPositives.isEmpty()){
-            minimalPositives.coalesce(1).saveAsTextFile(outputPath);
+        if(!this.minimalPositives.isEmpty()){
+            this.minimalPositives.coalesce(1).saveAsTextFile(outputPath);
         }
         else{
             List<String> outputList = new ArrayList<>();
@@ -54,8 +54,8 @@ extends GraphTraverser implements Serializable {
         this.columnNames = columnNames;
         this.filterNonUniqueColumnCombinationBitsets(basePLIs);
         this.numberOfColumns = (int) this.calculatedPlis.count();
-        this.negativeGraph = new PruningGraph(this.numberOfColumns, this.OVERFLOW_THRESHOLD, false);
-        this.positiveGraph = new PruningGraph(this.numberOfColumns, this.OVERFLOW_THRESHOLD, true);
+        this.negativeGraph = new SimplePruningGraph(this.numberOfColumns, false);
+        this.positiveGraph = new SimplePruningGraph(this.numberOfColumns, true);
         this.randomWalkTrace = new LinkedList<>();               
         this.seedCandidates = this.buildInitialSeeds(); 
         this.holeFinder = new HoleFinder(this.numberOfColumns);
@@ -73,7 +73,7 @@ extends GraphTraverser implements Serializable {
             return new Tuple2<>(currentColumnCombination, pli);
         });
         
-        this.calculatedPlis.cache();
+        this.calculatedPlis = this.calculatedPlis.cache();
 
         //keep only unique plis and add them to minimal graph
         this.minimalPositives = this.calculatedPlis.filter((Tuple2<ColumnCombinationBitset,
