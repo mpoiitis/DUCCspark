@@ -113,8 +113,15 @@ public abstract class SimpleGraphTraverser implements Serializable{
         if (pli != null) {
             return pli;
         }
+        
         pli = this.createPliFromExistingPli(columnCombination);
-        return pli;
+        
+        if(pli == null){
+            return new PositionListIndex();
+        }
+        else{
+            return pli;
+        }
     }
     
     /**
@@ -141,12 +148,13 @@ public abstract class SimpleGraphTraverser implements Serializable{
         int counter = 0;
         
         List<ColumnCombinationBitset> containedOneColumnCombinations = columnCombination.getContainedOneColumnCombinations();
-        
+        ColumnCombinationBitset currentBestSet;
         if(containedOneColumnCombinations.isEmpty()){
-            return new PositionListIndex();   
+            currentBestSet = new ColumnCombinationBitset();
         }
-        
-        ColumnCombinationBitset currentBestSet = containedOneColumnCombinations.get(0);
+        else{
+            currentBestSet = containedOneColumnCombinations.get(0);
+        }
         
         ColumnCombinationBitset currentBestMinusSet = columnCombination.minus(currentBestSet);
         Iterator<ColumnCombinationBitset> itr = this.calculatedPliBitsetStack.iterator();
