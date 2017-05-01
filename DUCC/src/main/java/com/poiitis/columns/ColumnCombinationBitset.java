@@ -1,16 +1,14 @@
 package com.poiitis.columns;
 
-import com.poiitis.utils.OpenBitSetSerializable;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
 import java.util.Set;
-import org.apache.lucene.util.ArrayUtil;
-import org.apache.lucene.util.OpenBitSet;
 
 /**
  *
@@ -20,15 +18,15 @@ public class ColumnCombinationBitset implements Comparable<ColumnCombinationBits
 
     private static final long serialVersionUID = -6712712982034731872L;
 
-    protected OpenBitSetSerializable bitset;
+    protected BitSet bitset;
     protected long size = 0;
 
     public ColumnCombinationBitset(){
-        bitset = new OpenBitSetSerializable();
+        bitset = new BitSet();
     }
     
     public ColumnCombinationBitset(int... columnIndeces) {
-        bitset = new OpenBitSetSerializable();
+        bitset = new BitSet();
 
         for (int columnIndex : columnIndeces) {
             // If the bit was not yet set, increase the size.
@@ -36,9 +34,9 @@ public class ColumnCombinationBitset implements Comparable<ColumnCombinationBits
         }
     }
 
-    public ColumnCombinationBitset(List<Integer> columnIndeces) {
+    /*public ColumnCombinationBitset(List<Integer> columnIndeces) {
         this(ArrayUtil.toIntArray(columnIndeces));
-    }
+    }*/
 
     /**
      * Creates a copy of the current instance.
@@ -46,15 +44,15 @@ public class ColumnCombinationBitset implements Comparable<ColumnCombinationBits
      * @param columnCombination that is cloned to the new instance
      */
     public ColumnCombinationBitset(ColumnCombinationBitset columnCombination) {
-        setColumns(columnCombination.bitset.clone());
+        setColumns((BitSet)columnCombination.bitset.clone());
     }
 
-    public OpenBitSet getBitSet() {
+    public BitSet getBitSet() {
         return bitset;
     }
     
-    public void setBitset(OpenBitSet obs) {
-        this.bitset.setBitSet(obs);
+    public void setBitset(BitSet obs) {
+        this.bitset = obs;
     }
 
     public long getSize() {
@@ -66,16 +64,16 @@ public class ColumnCombinationBitset implements Comparable<ColumnCombinationBits
     }
 
     /**
-     * Sets the given OpenBitSet, the previous state is overwritten!
+     * Sets the given BitSet, the previous state is overwritten!
      *
      * @param bitset set on the existing ColumnCombinationBitset
      * @return the instance
      */
-    protected ColumnCombinationBitset setColumns(OpenBitSet bitset) {
+    protected ColumnCombinationBitset setColumns(BitSet bitset) {
         if(this.bitset == null){
-            this.bitset = new OpenBitSetSerializable();
+            this.bitset = new BitSet();
         }
-        this.bitset.setBitSet(bitset);
+        this.bitset = bitset;
         size = bitset.cardinality();
 
         return this;
@@ -148,12 +146,8 @@ public class ColumnCombinationBitset implements Comparable<ColumnCombinationBits
     public String toString() {
         StringBuilder stringBuilder = new StringBuilder();
         stringBuilder.append("ColumnCombinationBitset ");
+        stringBuilder.append(bitset.toString());
         
-        int lastSetBitIndex = bitset.prevSetBit(bitset.length());
-
-        for (int i = 0; i <= lastSetBitIndex; i++) {
-            stringBuilder.append(bitset.get(i) ? 1 : 0);
-        }
 
         return stringBuilder.toString();
     }
@@ -190,7 +184,7 @@ public class ColumnCombinationBitset implements Comparable<ColumnCombinationBits
      * @return potentialSubset is a sub set
      */
     public boolean containsSubset(ColumnCombinationBitset potentialSubset) {
-        OpenBitSet ored = potentialSubset.bitset.clone();
+        BitSet ored = (BitSet) potentialSubset.bitset.clone();
         ored.or(bitset);
         return bitset.equals(ored);
     }
@@ -430,7 +424,7 @@ public class ColumnCombinationBitset implements Comparable<ColumnCombinationBits
     public ColumnCombinationBitset minus(
             ColumnCombinationBitset otherColumnCombination) {
 
-        OpenBitSet temporaryBitset = bitset.clone();
+        BitSet temporaryBitset = (BitSet) this.bitset.clone();
         temporaryBitset.andNot(otherColumnCombination.bitset);
         
         return new ColumnCombinationBitset().setColumns(temporaryBitset);
@@ -460,7 +454,7 @@ public class ColumnCombinationBitset implements Comparable<ColumnCombinationBits
      * @return the union of the two column combinations
      */
     public ColumnCombinationBitset union(ColumnCombinationBitset other) {
-        OpenBitSet unionBitSet = bitset.clone();
+        BitSet unionBitSet = (BitSet) this.bitset.clone();
         unionBitSet.or(other.bitset);
         return new ColumnCombinationBitset().setColumns(unionBitSet);
     }
@@ -474,7 +468,7 @@ public class ColumnCombinationBitset implements Comparable<ColumnCombinationBits
      * @return the intersection of the two column combinations
      */
     public ColumnCombinationBitset intersect(ColumnCombinationBitset other) {
-        OpenBitSet intersectionBitSet = bitset.clone();
+        BitSet intersectionBitSet = (BitSet) this.bitset.clone();
         intersectionBitSet.and(other.bitset);
         return new ColumnCombinationBitset().setColumns(intersectionBitSet);
     }
@@ -591,7 +585,7 @@ public class ColumnCombinationBitset implements Comparable<ColumnCombinationBits
      */
     public ColumnCombinationBitset setAllBits(int dimension) {
         size = 0;
-        bitset = new OpenBitSetSerializable();
+        bitset = new BitSet();
         for (int i = 0; i < dimension; i++) {
             addColumn(i);
         }
@@ -628,7 +622,7 @@ public class ColumnCombinationBitset implements Comparable<ColumnCombinationBits
      * {@link de.metanome.algorithm_helper.data_structures.ColumnCombinationBitset}
      */
     public ColumnCombinationBitset invert(int size) {
-        OpenBitSet invertedBitset = this.bitset.clone();
+        BitSet invertedBitset = (BitSet) this.bitset.clone();
         invertedBitset.flip(0, size);
         return new ColumnCombinationBitset().setColumns(invertedBitset);
     }

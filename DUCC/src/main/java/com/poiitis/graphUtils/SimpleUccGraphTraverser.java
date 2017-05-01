@@ -104,7 +104,6 @@ extends SimpleGraphTraverser implements Serializable {
         List<ColumnCombinationBitset> list = this.bitmaskForNonUniqueColumns.getNSubsetColumnCombinations(2);
 
         JavaRDD<ColumnCombinationBitset> rdd = Singleton.getSparkContext().parallelize(list);
-        
         return rdd;
     }
 
@@ -117,6 +116,9 @@ extends SimpleGraphTraverser implements Serializable {
     }
 
     protected boolean isUnique(PositionListIndex pli) {
+        if(pli == null){
+            return false;
+        }
         if (this.desiredKeyError == 0) {
             return pli.isUnique();
         }

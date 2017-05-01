@@ -1,23 +1,30 @@
 package com.poiitis.utils;
 
+import java.io.Serializable;
+import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaSparkContext;
 
 /**
  *
  * @author Poiitis Marinos
  */
-public final class Singleton {
-    private static JavaSparkContext instance;
-    private Singleton() {}
-    
-    public static synchronized void setSparkContext(JavaSparkContext sc){
-        instance = sc;
-    }
-    public static synchronized JavaSparkContext getSparkContext() {
-        return instance;
-    }
-    
-    public static synchronized void closeSparkContext(){
-        instance.close();
-    }
+public class Singleton implements Serializable
+{
+
+	private static final JavaSparkContext CONTEXT;
+
+	static
+	{
+		//define spark context
+		SparkConf conf = new SparkConf().setAppName("Quasi Identifier Finder");
+		CONTEXT = new JavaSparkContext(conf);
+	}
+
+	private Singleton(){}
+
+	public static JavaSparkContext getSparkContext()
+	{
+		return CONTEXT;
+	}
+
 }

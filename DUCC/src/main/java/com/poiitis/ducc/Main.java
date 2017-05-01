@@ -4,30 +4,28 @@ import com.poiitis.exceptions.AlgorithmExecutionException;
 import com.poiitis.pli.PLIBuilder;
 import com.poiitis.pli.PositionListIndex;
 import com.poiitis.utils.Singleton;
+import java.io.Serializable;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaRDD;
-import org.apache.spark.api.java.JavaSparkContext;
 
 
 /**
  *
  * @author Poiitis Marinos
  */
-public class Main {
+public class Main implements Serializable{
     
     //private static final String INPUT_PATH = "hdfs://localhost:9000/user/mpoiitis/input"; 
     //private static final String CHECKPOINT_PATH = "hdfs://localhost:9000/user/mpoiitis/checkpoint"; 
-    private static final String INPUT_PATH = "hdfs:///user/mpoiitis/input"; 
+    private static final String INPUT_PATH = "input";
     //private static final String CHECKPOINT_PATH = "hdfs:///user/mpoiitis/checkpoint"; 
+    
+    private static final long serialVersionUID = 6577720769633116725L;
     
     public static void main(String[] args){
         
         int numPartitions = 4;
-        SparkConf conf = new SparkConf().setAppName("My App");
-        JavaSparkContext sc = new JavaSparkContext(conf);
-        Singleton.setSparkContext(sc);
         
         //set checkpoint path
         //Singleton.getSparkContext().setCheckpointDir(CHECKPOINT_PATH);
@@ -48,8 +46,7 @@ public class Main {
         } catch (AlgorithmExecutionException ex) {
             Logger.getLogger(Main.class.getName()).log(Level.SEVERE, null, ex);
         }
-        
-        Singleton.closeSparkContext();
+
     }
     
 }

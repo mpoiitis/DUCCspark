@@ -61,19 +61,25 @@ public abstract class SimpleGraphTraverser implements Serializable{
         while (null != currentColumnCombination) {
             ColumnCombinationBitset newColumn = null;
             if (this.isSubsetOfMaximalNegativeColumnCombination(currentColumnCombination)) {
+                //System.out.println("Subset of maximal negative " + currentColumnCombination);
                 newColumn = null;
             } else if (this.isSupersetOfPositiveColumnCombination(currentColumnCombination)) {
+                //System.out.println("Superset of positive " + currentColumnCombination);
                 newColumn = null;
             } else if (this.isPositiveColumnCombination(currentColumnCombination)) {
+                //System.out.println("Is positive " + currentColumnCombination);
                 this.positiveGraph.add(currentColumnCombination);
                 newColumn = this.getNextChildColumnCombination(currentColumnCombination);
                 if (null == newColumn) {
+                    //System.out.println("Add minimal positive " + currentColumnCombination);
                     this.addMinimalPositive(currentColumnCombination);
                 }               
             } else if (!this.isPositiveColumnCombination(currentColumnCombination)){
+                //System.out.println("Is not positive " + currentColumnCombination);
                 this.negativeGraph.add(currentColumnCombination);
                 newColumn = this.getNextParentColumnCombination(currentColumnCombination);
                 if (null == newColumn) {
+                    //System.out.println("Add maximal negative " + currentColumnCombination);
                     this.addMaximalNegatives(currentColumnCombination);
                     this.holeFinder.update(currentColumnCombination);
                 }
@@ -99,7 +105,7 @@ public abstract class SimpleGraphTraverser implements Serializable{
             
             seedCandidate = this.findUnprunedSetAndUpdateGivenList(this.seedCandidates, true);
         }
-        
+        //System.out.println("Get Seed: " + seedCandidate);
         return seedCandidate;
     }
     
@@ -270,11 +276,13 @@ public abstract class SimpleGraphTraverser implements Serializable{
                 continue;
             }
             if (this.positiveGraph.find(singleSet)) {
+                //System.out.println("found positive " + singleSet);
                 if (!setPrunedEntriesToNull) continue;
                 sets.set(no, null);
                 continue;
             }
             if (this.negativeGraph.find(singleSet)) {
+                //System.out.println("found negative " + singleSet);
                 if (!setPrunedEntriesToNull) continue;
                 sets.set(no, null);
                 continue;

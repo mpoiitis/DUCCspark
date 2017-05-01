@@ -1,10 +1,14 @@
 package com.poiitis.pli;
 
+import java.io.Serializable;
+
 /**
  *
  * @author Poiitis Marinos
  */
-public class IntPair implements Comparable<IntPair> {
+public class IntPair implements Serializable, Comparable<IntPair> {
+
+  private static final long serialVersionUID = 2000453531470227564L;
 
   private int first;
   private int second;
