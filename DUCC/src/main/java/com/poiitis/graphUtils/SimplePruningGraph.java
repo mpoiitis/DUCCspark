@@ -35,8 +35,14 @@ public class SimplePruningGraph implements Serializable{
         }
         this.allBitsSet = new ColumnCombinationBitset(setBits);
     }
-
     
+    public JavaRDD<ColumnCombinationBitset> getColumnCombinationMap(){
+        return this.columnCombinationMap;
+    }
+
+    public void setColumnCombinationMap(JavaRDD<ColumnCombinationBitset> rdd){
+        this.columnCombinationMap = rdd;
+    }
     /**
      * if this is a uniques graph, add column combination and all of its supersets,
      * else add column combination and all of its subsets
