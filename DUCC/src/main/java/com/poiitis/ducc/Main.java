@@ -16,9 +16,9 @@ import org.apache.spark.api.java.JavaRDD;
  */
 public class Main implements Serializable{
     
-    //private static final String INPUT_PATH = "hdfs://localhost:9000/user/mpoiitis/input"; 
+    private static final String INPUT_PATH = "hdfs://localhost:9000/user/mpoiitis/input"; 
     //private static final String CHECKPOINT_PATH = "hdfs://localhost:9000/user/mpoiitis/checkpoint"; 
-    private static final String INPUT_PATH = "input";
+    //private static final String INPUT_PATH = "input";
     //private static final String CHECKPOINT_PATH = "hdfs:///user/mpoiitis/checkpoint"; 
     
     private static final long serialVersionUID = 6577720769633116725L;
@@ -32,8 +32,9 @@ public class Main implements Serializable{
         
         JavaRDD<String> input = Singleton.getSparkContext().textFile(INPUT_PATH, numPartitions);
         
-        //CustomParser parser = new CustomParser(input);
-        Parser parser = new Parser(input);
+        //AutoParser parser = new AutoParser(input);
+        CustomParser parser = new CustomParser(input);
+        //Parser parser = new Parser(input);
         JavaRDD<Adult> adults = parser.parseFile();
         
         PLIBuilder pliBuilder = new PLIBuilder(adults, true);

@@ -49,8 +49,8 @@ public class DuccAlgorithm implements Serializable{
         this.found = 0;
         this.graphTraverser.init(pliList, this.columnNames);
         this.found = this.graphTraverser.traverseGraph();
-        //this.graphTraverser.saveResults("hdfs://localhost:9000/user/mpoiitis/output");
-        this.graphTraverser.saveResults("output");
+        this.graphTraverser.saveResults("hdfs://localhost:9000/user/mpoiitis/output");
+        //this.graphTraverser.saveResults("output");
     }
 
     public ImmutableList<ColumnCombinationBitset> getMinimalUniqueColumnCombinations() {

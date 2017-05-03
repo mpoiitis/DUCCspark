@@ -184,9 +184,9 @@ public class ColumnCombinationBitset implements Comparable<ColumnCombinationBits
      * @return potentialSubset is a sub set
      */
     public boolean containsSubset(ColumnCombinationBitset potentialSubset) {
-        BitSet ored = (BitSet) potentialSubset.bitset.clone();
-        ored.or(bitset);
-        return bitset.equals(ored);
+        BitSet ored = (BitSet) potentialSubset.getBitSet().clone();
+        ored.or(this.bitset);
+        return this.bitset.equals(ored);
     }
 
     /**

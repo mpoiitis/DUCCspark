@@ -26,7 +26,6 @@ public class SimplePruningGraph implements Serializable{
     protected ColumnCombinationBitset allBitsSet;
 
     public SimplePruningGraph(int numberOfColumns, boolean positiveFeature) {
-        this.columnCombinationMap = this.columnCombinationMap.cache();
         this.numberOfColumns = numberOfColumns;
         this.containsPositiveFeature = positiveFeature;
         int[] setBits = new int[this.numberOfColumns];

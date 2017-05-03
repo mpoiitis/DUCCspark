@@ -36,7 +36,7 @@ extends SimpleGraphTraverser implements Serializable {
 
     public void saveResults(String outputPath){
         if(!this.minimalPositives.isEmpty()){
-            this.minimalPositives.coalesce(1).saveAsTextFile(outputPath);
+            this.minimalPositives.coalesce(1, true).saveAsTextFile(outputPath);
         }
         else{
             List<String> outputList = new ArrayList<>();
