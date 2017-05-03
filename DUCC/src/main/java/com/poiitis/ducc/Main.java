@@ -16,9 +16,9 @@ import org.apache.spark.api.java.JavaRDD;
  */
 public class Main implements Serializable{
     
-    private static final String INPUT_PATH = "hdfs://localhost:9000/user/mpoiitis/input"; 
+    //private static final String INPUT_PATH = "hdfs://localhost:9000/user/mpoiitis/input"; 
     //private static final String CHECKPOINT_PATH = "hdfs://localhost:9000/user/mpoiitis/checkpoint"; 
-    //private static final String INPUT_PATH = "input";
+    private static final String INPUT_PATH = "input";
     //private static final String CHECKPOINT_PATH = "hdfs:///user/mpoiitis/checkpoint"; 
     
     private static final long serialVersionUID = 6577720769633116725L;

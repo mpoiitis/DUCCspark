@@ -130,6 +130,8 @@ public abstract class SimpleGraphTraverser implements Serializable{
             seedCandidate = this.findUnprunedSetAndUpdateGivenList(this.seedCandidates, true);
         }
         System.out.println("Marinos Get Seed: " + seedCandidate);
+        this.negativeGraph.printGraph("");
+        this.positiveGraph.printGraph("");
         return seedCandidate;
     }
     
@@ -349,6 +351,7 @@ public abstract class SimpleGraphTraverser implements Serializable{
         JavaRDD<ColumnCombinationBitset> rdd = Singleton.getSparkContext().parallelize(list);
         
         this.minimalPositives = this.minimalPositives.union(rdd);
+        this.minimalPositives = this.minimalPositives.cache();
         ++this.found;
     }
     
@@ -362,7 +365,8 @@ public abstract class SimpleGraphTraverser implements Serializable{
         list.add(ccb);
         JavaRDD<ColumnCombinationBitset> rdd = Singleton.getSparkContext().parallelize(list);
 
-        this.maximalNegatives = this.maximalNegatives.union(rdd);    
+        this.maximalNegatives = this.maximalNegatives.union(rdd);
+        this.maximalNegatives = this.maximalNegatives.cache();
     }
 
     /**

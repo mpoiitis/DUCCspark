@@ -83,10 +83,10 @@ public class SimplePruningGraph implements Serializable{
     }
     
     protected void printGraph(String str){
-        String type = this.containsPositiveFeature ? "POSITIVE" : "NEGATIVE";
+        String type = this.containsPositiveFeature ? "Marinos POSITIVE" : "Marinos NEGATIVE";
         System.out.println(type + " COLUMN COMBINATION MAP " + str + " =================================");
         for(ColumnCombinationBitset ccb : this.columnCombinationMap.collect()){
-            System.out.println(ccb.toString());
+            System.out.println("Marinos " + ccb.toString());
         }
         System.out.println(type + " COLUMN COMBINATION MAP END=================================");
     }
