@@ -58,7 +58,7 @@ extends SimpleGraphTraverser implements Serializable {
         this.positiveGraph = new SimplePruningGraph(this.numberOfColumns, true);
         this.randomWalkTrace = new LinkedList<>();               
         this.seedCandidates = this.buildInitialSeeds(); 
-        this.holeFinder = new HoleFinder(this.numberOfColumns);
+        this.holeFinder = new SimpleHoleFinder(this.numberOfColumns);
     }
 
     /**

@@ -36,7 +36,7 @@ public abstract class SimpleGraphTraverser implements Serializable{
     protected JavaRDD<ColumnCombinationBitset> maximalNegatives = Singleton.getSparkContext().emptyRDD();
     protected Deque<ColumnCombinationBitset> randomWalkTrace = new LinkedList<ColumnCombinationBitset>();
     protected JavaRDD<ColumnCombinationBitset> seedCandidates;
-    protected HoleFinder holeFinder;
+    protected SimpleHoleFinder holeFinder;
     protected Random random = new Random();
     protected int found;
     
@@ -105,7 +105,7 @@ public abstract class SimpleGraphTraverser implements Serializable{
                 if (null == newColumn) {
                     System.out.println("Marinos Add maximal negative " + currentColumnCombination);
                     this.addMaximalNegatives(currentColumnCombination);
-                    this.holeFinder.update(currentColumnCombination);
+                    this.holeFinder.update(currentColumnCombination, this.minimalPositives);
                 }
             }
             if (null != newColumn) {
@@ -124,19 +124,24 @@ public abstract class SimpleGraphTraverser implements Serializable{
     
     protected ColumnCombinationBitset getSeed() {
         ColumnCombinationBitset seedCandidate = this.findUnprunedSetAndUpdateGivenList(this.seedCandidates, true);
+
         if (seedCandidate == null) {
+            System.out.println("Marinos count before holes " + this.seedCandidates.count());
             this.seedCandidates = this.getHoles();
-            
+            System.out.println("Marinos count " + this.seedCandidates.count());
             seedCandidate = this.findUnprunedSetAndUpdateGivenList(this.seedCandidates, true);
         }
         System.out.println("Marinos Get Seed: " + seedCandidate);
-        this.negativeGraph.printGraph("");
-        this.positiveGraph.printGraph("");
         return seedCandidate;
     }
     
-    protected JavaRDD<ColumnCombinationBitset> getHoles() {
+    /*protected JavaRDD<ColumnCombinationBitset> getHoles() {
         return this.holeFinder.getHolesWithoutGivenColumnCombinations(this.minimalPositives);
+    }*/
+    protected JavaRDD<ColumnCombinationBitset> getHoles() {
+        JavaRDD<ColumnCombinationBitset> rdd = this.holeFinder.getHoles();
+        this.holeFinder.clearHoles();
+        return rdd;
     }
     
     protected PositionListIndex getPLIFor(ColumnCombinationBitset columnCombination) {

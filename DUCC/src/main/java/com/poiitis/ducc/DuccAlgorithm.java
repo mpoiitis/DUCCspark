@@ -1,12 +1,10 @@
 package com.poiitis.ducc;
 
-import com.google.common.collect.ImmutableList;
-import com.poiitis.columns.ColumnCombinationBitset;
+
 import com.poiitis.exceptions.AlgorithmExecutionException;
 import com.poiitis.graphUtils.SimpleUccGraphTraverser;
 import com.poiitis.pli.PositionListIndex;
 import java.io.Serializable;
-import java.util.Collection;
 import java.util.List;
 import java.util.Random;
 import org.apache.spark.api.java.JavaRDD;
@@ -51,9 +49,5 @@ public class DuccAlgorithm implements Serializable{
         this.found = this.graphTraverser.traverseGraph();
         //this.graphTraverser.saveResults("hdfs://localhost:9000/user/mpoiitis/output");
         this.graphTraverser.saveResults("output");
-    }
-
-    public ImmutableList<ColumnCombinationBitset> getMinimalUniqueColumnCombinations() {
-        return ImmutableList.copyOf((Collection)this.graphTraverser.getMinimalPositiveColumnCombinations().collect());
     }
 }

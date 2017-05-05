@@ -7,9 +7,6 @@ import java.util.ArrayList;
 import java.util.List;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
-import org.apache.spark.api.java.function.Function;
-import org.apache.spark.api.java.function.Function2;
-import org.apache.spark.api.java.function.PairFunction;
 import org.apache.spark.broadcast.Broadcast;
 import scala.Tuple2;
 
@@ -28,6 +25,7 @@ public class HoleFinder implements Serializable{
     }
 
     public JavaRDD<ColumnCombinationBitset> getHoles() {
+        this.complementarySet = this.complementarySet.cache();
         return this.complementarySet;
     }
 
@@ -35,9 +33,19 @@ public class HoleFinder implements Serializable{
      * get holes according to complementary set that are not contained in given column combinations
      */
     public JavaRDD<ColumnCombinationBitset> getHolesWithoutGivenColumnCombinations(JavaRDD<ColumnCombinationBitset> givenColumnCombination) {
- 
-        JavaRDD<ColumnCombinationBitset> holes = this.complementarySet.subtract(givenColumnCombination);
-        return holes;
+        
+        if(givenColumnCombination.isEmpty()){
+            return this.getHoles();
+        }
+        
+        if(this.complementarySet.isEmpty()){
+            return Singleton.getSparkContext().emptyRDD();//return an empty rdd
+        }
+        else{ 
+            JavaRDD<ColumnCombinationBitset> holes = this.complementarySet.subtract(givenColumnCombination);
+            holes = holes.cache();
+            return holes;
+        }
     }
     
     /**
@@ -62,13 +70,19 @@ public class HoleFinder implements Serializable{
 
     public void update(ColumnCombinationBitset maximalNegative) {
 
+        System.out.println("Marinos " + maximalNegative);
         ColumnCombinationBitset singleComplementMaxNegative = this.allBitsSet.minus(maximalNegative);
-        if (this.complementarySet.count() == 0) {
+        if (this.complementarySet.isEmpty()) {
             List<ColumnCombinationBitset> list = singleComplementMaxNegative.getContainedOneColumnCombinations();
             JavaRDD<ColumnCombinationBitset> rdd = Singleton.getSparkContext().parallelize(list);
             
             this.complementarySet = this.complementarySet.union(rdd);
-            
+           
+            System.out.println("Marinos complementary set from empty ");
+            for(ColumnCombinationBitset c : this.complementarySet.collect()){
+                System.out.println("Marinos complement " + c);
+            }
+
             return;
         }
         JavaRDD<ColumnCombinationBitset> complementarySetsArray = this.addPossibleCombinationsToComplementArray(singleComplementMaxNegative);
@@ -79,6 +93,10 @@ public class HoleFinder implements Serializable{
             return ccb != null ? true : false;
         });
         
+        System.out.println("Marinos complementary set");
+        for(ColumnCombinationBitset c : this.complementarySet.collect()){
+            System.out.println("Marinos complement " + c);
+        }
     }
 
     protected JavaRDD<ColumnCombinationBitset> removeSubsetsFromComplementarySetsArray(JavaRDD<ColumnCombinationBitset> complementarySetsList) {
@@ -88,33 +106,22 @@ public class HoleFinder implements Serializable{
         
         //rdd containing col comb bitset name as key and col comb bitset as value in order to reduce by key.
         //reduce: if either col comb bitset value is null return null, else the col comb bitset.
-        JavaPairRDD<String, ColumnCombinationBitset> reformedCartesian = cartesian.mapToPair(new PairFunction<Tuple2<ColumnCombinationBitset, ColumnCombinationBitset>,
-            String, ColumnCombinationBitset>(){
-                public Tuple2<String, ColumnCombinationBitset> call(Tuple2<ColumnCombinationBitset, ColumnCombinationBitset> tuple){
-                   
-                    if(!tuple._1.equals(tuple._2) && tuple._2 != null && tuple._2.containsSubset(tuple._1)){
-                        return new Tuple2<>(tuple._2.toString(), null); 
-                    }
-                    return new Tuple2<>(tuple._2.toString(), tuple._2);
-                }     
-            }).reduceByKey(new Function2<ColumnCombinationBitset, ColumnCombinationBitset, ColumnCombinationBitset>(){
-                public ColumnCombinationBitset call(ColumnCombinationBitset ccb1, ColumnCombinationBitset ccb2){
-                    if(ccb1 == null || ccb2 == null){
-                        return null;
-                    }
-                    else{
-                        return ccb1;
-                    }
-                }
-            });
+        JavaPairRDD<String, ColumnCombinationBitset> reformedCartesian = cartesian.mapToPair((Tuple2<ColumnCombinationBitset, ColumnCombinationBitset> tuple) -> {
+            if(!tuple._1.equals(tuple._2) && tuple._2 != null && tuple._2.containsSubset(tuple._1)){
+                return new Tuple2<>(tuple._2.toString(), null);
+            }
+            return new Tuple2<>(tuple._2.toString(), tuple._2);
+        }).reduceByKey((ColumnCombinationBitset ccb1, ColumnCombinationBitset ccb2) -> {
+            if(ccb1 == null || ccb2 == null){
+                return null;
+            }
+            else{
+                return ccb1;
+            }
+        });
         
-        complementarySetsList = reformedCartesian.map(new Function<Tuple2<String, ColumnCombinationBitset>, 
-                ColumnCombinationBitset>(){
-                    public ColumnCombinationBitset call(Tuple2<String, ColumnCombinationBitset> tuple){
-                        return tuple._2;
-                    }
-                });
-
+        complementarySetsList = reformedCartesian.map((Tuple2<String, ColumnCombinationBitset> tuple) -> tuple._2);
+        complementarySetsList = complementarySetsList.cache();
         return complementarySetsList;
     }
 
@@ -142,7 +149,7 @@ public class HoleFinder implements Serializable{
             }
             return list.iterator();
         });
-        
+
         return complementSet;
     }
 }
