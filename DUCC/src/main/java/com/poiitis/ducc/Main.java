@@ -32,9 +32,9 @@ public class Main implements Serializable{
         
         JavaRDD<String> input = Singleton.getSparkContext().textFile(INPUT_PATH, numPartitions);
         
-        //AutoParser parser = new AutoParser(input);
+        AutoParser parser = new AutoParser(input);
         //CustomParser parser = new CustomParser(input);
-        Parser parser = new Parser(input);
+        //Parser parser = new Parser(input);
         JavaRDD<Adult> adults = parser.parseFile();
         
         PLIBuilder pliBuilder = new PLIBuilder(adults, true);

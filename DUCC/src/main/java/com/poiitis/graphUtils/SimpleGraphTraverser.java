@@ -59,51 +59,52 @@ public abstract class SimpleGraphTraverser implements Serializable{
      */
     protected void randomWalk(ColumnCombinationBitset currentColumnCombination) throws CouldNotReceiveResultException, ColumnNameMismatchException {
         while (null != currentColumnCombination) {
-            System.out.println("Marinos Random walk trace: ");
+            /*System.out.println("Marinos Random walk trace: ");
             for(Iterator itr = this.randomWalkTrace.iterator();itr.hasNext();)  {
                 System.out.println("Marinos " + itr.next());
-            }
+            }*/
             
-            System.out.println("Marinos Random walk trace =============");
+            //System.out.println("Marinos Random walk trace =============");
             ColumnCombinationBitset newColumn = null;
             if (this.isSubsetOfMaximalNegativeColumnCombination(currentColumnCombination)) {
-                System.out.println("Marinos Subset of maximal negative " + currentColumnCombination);
-                System.out.println("Marinos newColumn = NULL");
+                //System.out.println("Marinos Subset of maximal negative " + currentColumnCombination);
+                //System.out.println("Marinos newColumn = NULL");
                 newColumn = null;
             } else if (this.isSupersetOfPositiveColumnCombination(currentColumnCombination)) {
-                System.out.println("Marinos Superset of positive " + currentColumnCombination);
-                System.out.println("Marinos newColumn = NULL");
+                //System.out.println("Marinos Superset of positive " + currentColumnCombination);
+                //System.out.println("Marinos newColumn = NULL");
                 newColumn = null;
             } else if (this.isPositiveColumnCombination(currentColumnCombination)) {
-                System.out.println("Marinos Is positive " + currentColumnCombination);
+                //System.out.println("Marinos Is positive " + currentColumnCombination);
                 this.positiveGraph.add(currentColumnCombination);
                 newColumn = this.getNextChildColumnCombination(currentColumnCombination);
                 
+                /*
                 if(null == newColumn){
                     System.out.println("Marinos newColumn = NULL");
                 }
                 else{
                     System.out.println("Marinos newColumn = " + newColumn);
-                }
+                }*/
                 
                 if (null == newColumn) {
-                    System.out.println("Marinos Add minimal positive " + currentColumnCombination);
+                    //System.out.println("Marinos Add minimal positive " + currentColumnCombination);
                     this.addMinimalPositive(currentColumnCombination);
                 }               
             } else if (!this.isPositiveColumnCombination(currentColumnCombination)){
-                System.out.println("Marinos Is not positive " + currentColumnCombination);
+                //System.out.println("Marinos Is not positive " + currentColumnCombination);
                 this.negativeGraph.add(currentColumnCombination);
                 newColumn = this.getNextParentColumnCombination(currentColumnCombination);
                 
-                if(null == newColumn){
+                /*if(null == newColumn){
                     System.out.println("Marinos newColumn = NULL");
                 }
                 else{
                     System.out.println("Marinos newColumn = " + newColumn);
-                }
+                }*/
                 
                 if (null == newColumn) {
-                    System.out.println("Marinos Add maximal negative " + currentColumnCombination);
+                    //System.out.println("Marinos Add maximal negative " + currentColumnCombination);
                     this.addMaximalNegatives(currentColumnCombination);
                     this.holeFinder.update(currentColumnCombination, this.minimalPositives);
                 }
@@ -125,13 +126,11 @@ public abstract class SimpleGraphTraverser implements Serializable{
     protected ColumnCombinationBitset getSeed() {
         ColumnCombinationBitset seedCandidate = this.findUnprunedSetAndUpdateGivenList(this.seedCandidates, true);
 
-        if (seedCandidate == null) {
-            System.out.println("Marinos count before holes " + this.seedCandidates.count());
+        if (seedCandidate == null) {;
             this.seedCandidates = this.getHoles();
-            System.out.println("Marinos count " + this.seedCandidates.count());
             seedCandidate = this.findUnprunedSetAndUpdateGivenList(this.seedCandidates, true);
         }
-        System.out.println("Marinos Get Seed: " + seedCandidate);
+        //System.out.println("Marinos Get Seed: " + seedCandidate);
         return seedCandidate;
     }
     
@@ -307,13 +306,13 @@ public abstract class SimpleGraphTraverser implements Serializable{
                 continue;
             }
             if (this.positiveGraph.find(singleSet)) {
-                System.out.println("Marinos found positive " + singleSet);
+                //System.out.println("Marinos found positive " + singleSet);
                 if (!setPrunedEntriesToNull) continue;
                 sets.set(no, null);
                 continue;
             }
             if (this.negativeGraph.find(singleSet)) {
-                System.out.println("Marinos found negative " + singleSet);
+                //System.out.println("Marinos found negative " + singleSet);
                 if (!setPrunedEntriesToNull) continue;
                 sets.set(no, null);
                 continue;
@@ -332,8 +331,6 @@ public abstract class SimpleGraphTraverser implements Serializable{
         Broadcast<ColumnCombinationBitset> bCurrentColumnCombination = Singleton.getSparkContext().broadcast(currentColumnCombination);
         long c1 =this.minimalPositives.count();
         Boolean b = !this.minimalPositives.filter((ColumnCombinationBitset ccb) -> ccb.isSubsetOf(bCurrentColumnCombination.value())).isEmpty();
-
-        System.out.println("Marinos " + c1);
         return b;
     }
 
