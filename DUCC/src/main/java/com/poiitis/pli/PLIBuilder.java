@@ -59,6 +59,7 @@ public class PLIBuilder implements Serializable{
 
     public void createInitialPLIs() {
 
+        this.adults = this.adults.cache();
         this.numberOfTuples = (int) this.adults.count();
         
         //list of all items of all adults in form (colName,colIndex),(row,cellValue)

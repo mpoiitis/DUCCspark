@@ -329,9 +329,7 @@ public abstract class SimpleGraphTraverser implements Serializable{
      */
     protected boolean isSupersetOfPositiveColumnCombination(ColumnCombinationBitset currentColumnCombination) {
         Broadcast<ColumnCombinationBitset> bCurrentColumnCombination = Singleton.getSparkContext().broadcast(currentColumnCombination);
-        long c1 =this.minimalPositives.count();
-        Boolean b = !this.minimalPositives.filter((ColumnCombinationBitset ccb) -> ccb.isSubsetOf(bCurrentColumnCombination.value())).isEmpty();
-        return b;
+        return !this.minimalPositives.filter((ColumnCombinationBitset ccb) -> ccb.isSubsetOf(bCurrentColumnCombination.value())).isEmpty();
     }
 
     /**
@@ -381,6 +379,7 @@ public abstract class SimpleGraphTraverser implements Serializable{
             return c.equals(bCcb.value());
         });
         
+        bCcb.destroy();
         return !rdd.isEmpty();
     }
     
@@ -394,6 +393,7 @@ public abstract class SimpleGraphTraverser implements Serializable{
             return c.equals(bCcb.value());
         });
         
+        bCcb.destroy();
         return !rdd.isEmpty();
     }
 

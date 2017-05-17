@@ -88,12 +88,23 @@ extends SimpleGraphTraverser implements Serializable {
         //take all non-unique plis and create the bitmask for them
         JavaPairRDD<ColumnCombinationBitset, PositionListIndex> nonUniques = this.calculatedPlis.filter((Tuple2<ColumnCombinationBitset,
             PositionListIndex> tuple) -> (!isUnique(tuple._2)));
-        for(Tuple2<ColumnCombinationBitset, PositionListIndex> tuple : nonUniques.collect()){
-            //again we know that pli consists of a single column, thats why get(0)
-            int columnIndex = tuple._2.getName().get(0)._2;
-            this.bitmaskForNonUniqueColumns.addColumn(columnIndex);
-        }
         
+        this.bitmaskForNonUniqueColumns = nonUniques.aggregate(new ColumnCombinationBitset(), (ColumnCombinationBitset c, Tuple2<ColumnCombinationBitset,PositionListIndex> t) -> {
+            //again we know that pli consists of a single column, thats why get(0)
+            c.addColumn(t._2.getName().get(0)._2);
+            return c;
+        }, (ColumnCombinationBitset c1, ColumnCombinationBitset c2) -> {
+            for(int i : c2.getSetBits()){
+                c1.addColumn(i);
+            }
+            return c1;
+        });
+        
+        /*for(Tuple2<ColumnCombinationBitset, PositionListIndex> tuple : nonUniques.collect()){
+            //again we know that pli consists of a single column, thats why get(0)
+            this.bitmaskForNonUniqueColumns.addColumn(tuple._2.getName().get(0)._2);//take the column index
+        }*/
+
     }
 
     /**

@@ -4,6 +4,7 @@ import com.google.common.collect.ImmutableList;
 import com.poiitis.utils.Singleton;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
@@ -21,26 +22,42 @@ public class Parser implements Serializable{
     
     private JavaRDD<String> input;
     private ArrayList<Tuple2<String,Integer>> columnNames;
+    private int numOfColumns = -1;//read only a given number of columns
     
     public Parser(JavaRDD<String> input){    
         this.input = input;
         columnNames = new ArrayList<>();
         
-        columnNames.add(new Tuple2("Age", 0));
-        columnNames.add(new Tuple2("Workclass", 1));
-        columnNames.add(new Tuple2("Fnlwgt", 2));
-        columnNames.add(new Tuple2("Education", 3));
-        columnNames.add(new Tuple2("Education-num", 4));
-        columnNames.add(new Tuple2("Marital-status", 5));
-        columnNames.add(new Tuple2("Occupation", 6));
-        columnNames.add(new Tuple2("Relationship", 7));
-        columnNames.add(new Tuple2("Race", 8));
-        columnNames.add(new Tuple2("Sex", 9));
-        columnNames.add(new Tuple2("Capital-gain", 10));
-        columnNames.add(new Tuple2("Capital-loss", 11));
-        columnNames.add(new Tuple2("Hours-per-week", 12));
-        columnNames.add(new Tuple2("Native-country", 13));
-        columnNames.add(new Tuple2("Over-than-fifty", 14));
+        String[] columns = this.input.first().split(",");
+        
+            for(int i=0; i<columns.length; i++){
+                columnNames.add(new Tuple2<>(columns[i], i));
+            }
+    }
+    
+    public Parser(JavaRDD<String> input, int numOfColumns){    
+        this.input = input;
+        columnNames = new ArrayList<>();
+        this.numOfColumns = numOfColumns;
+        
+        String[] columns = this.input.first().split(",");
+        
+        //escape whitespaces
+        for(int i=0; i<columns.length; i++){
+                columns[i] = columns[i].trim();
+        }
+        
+        if(numOfColumns == -1){
+            for(int i=0; i<columns.length; i++){
+                columnNames.add(new Tuple2<>(columns[i], i));
+            }
+        }
+        else{
+           for(int i=0; i<this.numOfColumns; i++){
+                columnNames.add(new Tuple2<>(columns[i], i));
+            } 
+        }
+        
     }
     
     public ArrayList<Tuple2<String,Integer>> getColumnNames(){return columnNames;}
@@ -48,22 +65,35 @@ public class Parser implements Serializable{
     public JavaRDD<Adult> parseFile(){
         
         JavaPairRDD<String, Long> temp = this.input.zipWithIndex();
+        temp = temp.filter((Tuple2<String, Long> t) -> (t._2 > 0));//escape header line of file
         
         Broadcast<ArrayList<Tuple2<String,Integer>>> bColNames = Singleton.getSparkContext().broadcast(this.columnNames);
+        Broadcast<Integer> bNumOfColumns = Singleton.getSparkContext().broadcast(this.numOfColumns);
         
-        JavaRDD<Adult> rdd_adults = temp.map(
-            new Function<Tuple2<String, Long>, Adult>(){
-                public Adult call(Tuple2<String, Long> tuple) throws Exception {
-                    String[] fields = tuple._1.split(",");
-                    //turn array to list
-                    List<String> temp = ImmutableList.copyOf(fields);
-                    ArrayList<String> fieldsList = new ArrayList<>(temp);
-                    
-                    Adult adult = new Adult(bColNames.value(), fieldsList, 
-                            tuple._2.intValue());
-                    return adult;
+        JavaRDD<Adult> rdd_adults = temp.map((Tuple2<String, Long> tuple) -> {
+            String[] fields = tuple._1.split(",");
+            
+            //escape whitespaces
+            for(int i=0; i<fields.length; i++){
+                fields[i] = fields[i].trim();
+            }
+            
+            ArrayList<String> fieldsList;
+            if(bNumOfColumns.value() == -1){
+                fieldsList = new ArrayList<>(Arrays.asList(fields));
+            }
+            else{
+                fieldsList = new ArrayList<>();
+                for(int i=0; i<bNumOfColumns.value(); i++){
+                    fieldsList.add(fields[i]);
                 }
-            });
+            }
+            
+            Adult adult = new Adult(bColNames.value(), fieldsList,
+                    tuple._2.intValue());
+            
+            return adult;
+        });
 
         return rdd_adults;
     }
